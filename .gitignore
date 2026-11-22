@@ -1,0 +1,30 @@
+# Gradle / Android 构建产物
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 本地配置与密钥
+local.properties
+.env
+.env.*
+
+# 签名与安装包
+*.jks
+*.keystore
+*.apk
+*.aab
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 项目本地产物（体积大或含个人资料）
+.deploy_tmp/
+art_raw/
+软著登记材料/
+
+# 智能体工作区
+.qoder/

@@ -1,0 +1,58 @@
+# Serverless Devs 配置（阿里云函数计算 FC 3.0，自定义运行时）
+# 使用前：
+#   npm install -g @serverless-devs/s
+#   s config add          # 配置阿里云 AccessKey（仅存本机）
+#   export DEEPSEEK_API_KEY=sk-xxx
+#   export APP_KEY=$(python -c "import secrets;print(secrets.token_hex(16))")
+# 部署：
+#   s deploy              # 首次会创建函数与 HTTP 触发器
+#   s deploy --skip-push  # 仅更新代码/配置（自定义运行时无需推送镜像）
+# 输出里的 urlInternet 即函数地址，形如 https://xxxx.cn-hangzhou.fcapp.run
+
+edition: 3.0.0
+name: calorie-diary-proxy
+access: default
+
+vars:
+  region: cn-hangzhou
+  functionName: Calorie_Diary_api
+
+resources:
+  proxy:
+    component: fc3
+    props:
+      region: ${vars.region}
+      functionName: ${vars.functionName}
+      description: 热量日记 - DeepSeek 识别代理
+      runtime: custom.debian10
+      code: ./
+      memorySize: 512
+      # 超时链路：App read(100s) > 函数超时(90s) > 上游 urlopen(80s)
+      timeout: 90
+      instanceConcurrency: 10
+      internetAccess: true
+      customRuntimeConfig:
+        port: 9000
+        command:
+          - python3
+          - app.py
+      environmentVariables:
+        DEEPSEEK_API_KEY: ${env.DEEPSEEK_API_KEY}
+        APP_KEY: ${env.APP_KEY}
+        SUPABASE_URL: ${env.SUPABASE_URL}
+        SUPABASE_PUBLISHABLE_KEY: ${env.SUPABASE_PUBLISHABLE_KEY}
+        SUPABASE_AUTH_TIMEOUT: "10"
+        DEEPSEEK_MODEL: deepseek-flash
+        DEEPSEEK_TIMEOUT: "80"
+        RATE_PER_MINUTE: "20"
+        RATE_PER_DAY: "200"
+        GLOBAL_RATE_PER_DAY: "1000"
+        MAX_BODY_MB: "8"
+      triggers:
+        - triggerName: httpTrigger
+          triggerType: http
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
