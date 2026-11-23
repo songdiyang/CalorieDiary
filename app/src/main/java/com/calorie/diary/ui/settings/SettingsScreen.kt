@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -48,6 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.calorie.diary.BuildConfig
 import com.calorie.diary.R
 import com.calorie.diary.data.AppRefreshBus
+import com.calorie.diary.data.UiMessenger
 import com.calorie.diary.data.supabase.AuthAccount
 import com.calorie.diary.data.supabase.DefaultAvatarCatalog
 import com.calorie.diary.viewmodel.AuthUiState
@@ -60,6 +65,8 @@ import com.calorie.diary.ui.components.DefaultAvatar
 import com.calorie.diary.ui.components.NicknameEditDialog
 import com.calorie.diary.viewmodel.ActivityPrivacyUiState
 import com.calorie.diary.viewmodel.ActivityPrivacyViewModel
+import com.calorie.diary.ui.theme.AppTheme
+import com.calorie.diary.ui.theme.AppThemePalettes
 import com.calorie.diary.ui.theme.CardWhite
 import com.calorie.diary.ui.theme.Danger
 import com.calorie.diary.ui.theme.Hairline
@@ -67,6 +74,7 @@ import com.calorie.diary.ui.theme.Ink
 import com.calorie.diary.ui.theme.InkLight
 import com.calorie.diary.ui.theme.OrangeDeep
 import com.calorie.diary.ui.theme.ScreenBg
+import com.calorie.diary.ui.theme.ThemeController
 import com.calorie.diary.ui.theme.YellowSoft
 import kotlin.math.roundToInt
 
@@ -93,8 +101,11 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
     var showAvatarPicker by remember { mutableStateOf(false) }
     var showNicknameEditor by remember { mutableStateOf(false) }
     var showDeletionDialog by remember { mutableStateOf(false) }
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
     val deletionState by authVm.deletionState.collectAsState()
+    val resetPasswordState by authVm.passwordResetState.collectAsState()
     val nicknameState by authVm.nicknameState.collectAsState()
+    val context = LocalContext.current
     val currentNickname = authState.cloudProfile?.nickname?.takeIf { it.isNotBlank() }
         ?: identity?.nickname?.takeIf { it.isNotBlank() }
         ?: ""
@@ -207,6 +218,18 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
         }
 
         Spacer(Modifier.height(20.dp))
+        SettingsSection(stringResource(R.string.settings_appearance_title)) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    stringResource(R.string.settings_appearance_hint),
+                    fontFamily = SettingsFont, fontSize = 12.sp, color = InkLight
+                )
+                Spacer(Modifier.height(12.dp))
+                ThemeSelector()
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
         SettingsSection(stringResource(R.string.activity_privacy_title)) {
             ActivityPrivacySettings(
                 state = privacyState,
@@ -223,6 +246,10 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
                 onAddAccount = onAddAccount,
                 onSwitch = authVm::switchAccount,
                 onSignOut = authVm::signOut,
+                onResetPassword = {
+                    authVm.clearPasswordResetState()
+                    showResetPasswordDialog = true
+                },
                 onDeleteAccount = {
                     authVm.resetDeletionState()
                     showDeletionDialog = true
@@ -284,6 +311,28 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
             onDismiss = {
                 showDeletionDialog = false
                 authVm.resetDeletionState()
+            }
+        )
+    }
+
+    if (showResetPasswordDialog) {
+        val email = authState.account?.email.orEmpty()
+        ResetPasswordDialog(
+            email = email,
+            state = resetPasswordState,
+            onSendCode = { authVm.sendPasswordResetCode(email) },
+            onConfirm = { code, password ->
+                authVm.resetPassword(email, code, password) {
+                    showResetPasswordDialog = false
+                    UiMessenger.show(
+                        context.getString(R.string.auth_reset_success),
+                        isError = false
+                    )
+                }
+            },
+            onDismiss = {
+                showResetPasswordDialog = false
+                authVm.clearPasswordResetState()
             }
         )
     }
@@ -462,6 +511,7 @@ private fun AccountManagementSettings(
     onAddAccount: () -> Unit,
     onSwitch: (String) -> Unit,
     onSignOut: () -> Unit,
+    onResetPassword: () -> Unit,
     onDeleteAccount: () -> Unit
 ) {
     if (accounts.isEmpty()) {
@@ -543,6 +593,24 @@ private fun AccountManagementSettings(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
+                stringResource(R.string.settings_reset_password),
+                fontFamily = SettingsFont, fontSize = 13.sp, color = OrangeDeep,
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !state.busy,
+                        onClick = onResetPassword
+                    )
+                    .padding(vertical = 4.dp)
+            )
+        }
+        SettingsDivider()
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
                 stringResource(R.string.settings_delete_account),
                 fontFamily = SettingsFont, fontSize = 13.sp, color = Danger,
                 modifier = Modifier
@@ -585,6 +653,92 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
         ) {
             content()
         }
+    }
+}
+
+@Composable
+private fun ThemeSelector() {
+    val selectedTheme = ThemeController.theme
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        AppTheme.values().forEach { theme ->
+            ThemeOption(
+                theme = theme,
+                selected = theme == selectedTheme,
+                modifier = Modifier.weight(1f),
+                onClick = { ThemeController.select(theme) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeOption(
+    theme: AppTheme,
+    selected: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val palette = AppThemePalettes.of(theme)
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier
+            .clip(shape)
+            .background(
+                if (selected) palette.yellowSoft.copy(alpha = 0.6f)
+                else ScreenBg.copy(alpha = 0.55f)
+            )
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) palette.primaryDeep.copy(alpha = 0.6f) else Hairline,
+                shape = shape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(listOf(palette.primary, palette.primaryDeep))
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(2.dp, palette.cardWhite.copy(alpha = 0.9f), CircleShape)
+                )
+                Text(
+                    "✓",
+                    fontFamily = SettingsFont, fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold, color = palette.cardWhite
+                )
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(
+            stringResource(
+                when (theme) {
+                    AppTheme.MINT -> R.string.settings_theme_mint
+                    AppTheme.SKY -> R.string.settings_theme_sky
+                    AppTheme.SUNSET -> R.string.settings_theme_sunset
+                }
+            ),
+            fontFamily = SettingsFont, fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) palette.primaryDeep else Ink
+        )
     }
 }
 

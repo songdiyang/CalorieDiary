@@ -1,13 +1,17 @@
 package com.calorie.diary.viewmodel
 
 import android.app.Application
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorie.diary.R
+import com.calorie.diary.data.UiMessenger
 import com.calorie.diary.data.repo.AppRepository
 import com.calorie.diary.data.supabase.ActivityDay
 import com.calorie.diary.data.supabase.ActivityProfile
 import com.calorie.diary.data.supabase.ActivityProfileResult
 import com.calorie.diary.data.supabase.ActivityRepository
+import com.calorie.diary.data.supabase.FriendAddStatus
 import com.calorie.diary.data.supabase.PublicProfile
 import com.calorie.diary.data.supabase.SocialRepository
 import com.calorie.diary.data.supabase.SocialSummary
@@ -35,7 +39,8 @@ data class PersonalPageUiState(
     val status: String = "ok",
     val requiresLogin: Boolean = false,
     val localOnly: Boolean = false,
-    val failed: Boolean = false
+    val failed: Boolean = false,
+    val friendActionBusy: Boolean = false
 )
 
 class PersonalPageViewModel(app: Application) : AndroidViewModel(app) {
@@ -126,6 +131,58 @@ class PersonalPageViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    /** 关注对方；对方会在消息页收到“关注了你”的提示。 */
+    fun follow(userId: String) {
+        if (_uiState.value.friendActionBusy) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(friendActionBusy = true) }
+            try {
+                when (socialRepo.follow(userId)) {
+                    "mutual" -> toast(R.string.friends_follow_mutual)
+                    "following" -> toast(R.string.friends_followed)
+                    "not_found" -> toast(R.string.friends_not_found, true)
+                    else -> toast(R.string.error_generic, true)
+                }
+                load(userId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                toast(R.string.error_generic, true)
+            } finally {
+                _uiState.update { it.copy(friendActionBusy = false) }
+            }
+        }
+    }
+
+    /** 互关后申请成为好友，仍需对方接受。 */
+    fun applyFriend(userId: String) {
+        if (_uiState.value.friendActionBusy) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(friendActionBusy = true) }
+            try {
+                when (socialRepo.applyFriend(userId).status) {
+                    FriendAddStatus.REQUEST_SENT -> toast(R.string.friends_request_sent)
+                    FriendAddStatus.FRIENDS -> toast(R.string.friends_added)
+                    FriendAddStatus.ALREADY_FRIENDS -> toast(R.string.friends_already)
+                    FriendAddStatus.FOLLOW_REQUIRED -> toast(R.string.friends_follow_required, true)
+                    FriendAddStatus.NOT_FOUND -> toast(R.string.friends_not_found, true)
+                    else -> toast(R.string.error_generic, true)
+                }
+                load(userId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                toast(R.string.error_generic, true)
+            } finally {
+                _uiState.update { it.copy(friendActionBusy = false) }
+            }
+        }
+    }
+
+    private fun toast(@StringRes messageRes: Int, isError: Boolean = false) {
+        UiMessenger.show(getApplication<Application>().getString(messageRes), isError)
     }
 
     private suspend fun loadSummaryQuietly(userId: String): SocialSummary? =

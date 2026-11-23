@@ -48,7 +48,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
         friendId = id
         viewModelScope.launch {
-            _uiState.update { it.copy(loading = true, errorRes = null) }
+            _uiState.update { it.copy(errorRes = null) }
+            // 本地有缓存时先上屏，云端只做后台同步，避免每次进来都等接口。
+            val cached = runCatching { repo.loadCachedChat(id) }.getOrNull()
+            if (cached != null) {
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        messages = cached.messages,
+                        currentUserId = cached.ownerId,
+                        friend = it.friend ?: cached.friend
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(loading = true) }
+            }
             try {
                 val data = repo.loadChat(id)
                 _uiState.update {
@@ -131,14 +145,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun shareCalories(
         calories: Int,
         entryDate: String,
-        items: List<SharedFood> = emptyList()
+        items: List<SharedFood> = emptyList(),
+        messageType: String = "calorie_share"
     ) {
         val id = friendId ?: return
         if (_uiState.value.sending) return
         viewModelScope.launch {
             _uiState.update { it.copy(sending = true, errorRes = null) }
             try {
-                val sent = repo.sendCalorieShare(id, calories, entryDate, items)
+                val sent = repo.sendCalorieShare(id, calories, entryDate, items, messageType)
                 _uiState.update {
                     it.copy(
                         sending = false,

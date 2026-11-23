@@ -89,6 +89,15 @@ class GroupsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun loadGroups() {
+        // 先用本地缓存把群会话显示出来，再后台拉取最新数据。
+        if (_uiState.value.groups.isEmpty()) {
+            val cached = runCatching { repo.loadCachedGroups() }.getOrDefault(emptyList())
+            if (cached.isNotEmpty()) {
+                _uiState.update {
+                    it.copy(requiresLogin = false, groups = cached, loading = false)
+                }
+            }
+        }
         val groups = repo.listGroups()
         // 邀请列表失败不影响群列表主流程。
         val invitations = runCatching { repo.listInvitations() }.getOrDefault(emptyList())

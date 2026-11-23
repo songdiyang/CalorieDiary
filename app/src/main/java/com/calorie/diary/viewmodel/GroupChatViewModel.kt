@@ -49,7 +49,21 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
         groupId = id
         date = entryDate
         viewModelScope.launch {
-            _uiState.update { it.copy(loading = true, errorRes = null) }
+            _uiState.update { it.copy(errorRes = null) }
+            // 本地有缓存时先展示消息与群资料，再后台同步成员和最新消息。
+            val cached = runCatching { repo.loadCachedChat(id) }.getOrNull()
+            if (cached != null) {
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        messages = cached.messages,
+                        group = it.group ?: cached.group,
+                        currentUserId = cached.ownerId
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(loading = true) }
+            }
             try {
                 val data = repo.loadChat(id, entryDate)
                 // 好友列表只用于邀请，加载失败不影响群聊主体。
@@ -106,14 +120,15 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
     fun shareCalories(
         calories: Int,
         entryDate: String,
-        items: List<SharedFood> = emptyList()
+        items: List<SharedFood> = emptyList(),
+        messageType: String = "calorie_share"
     ) {
         val content = getApplication<Application>().getString(
             R.string.group_calorie_share_text, calories
         )
         runSend {
             repo.sendMessage(
-                requireGroupId(), content, "calorie_share", calories, entryDate, items
+                requireGroupId(), content, messageType, calories, entryDate, items
             )
         }
     }

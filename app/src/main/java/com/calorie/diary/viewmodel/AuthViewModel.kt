@@ -52,6 +52,14 @@ data class AccountDeletionUiState(
     @StringRes val errorRes: Int? = null
 )
 
+/** 找回密码状态：验证码发送与提交进度；codeSentCount 用于触发重发倒计时。 */
+data class PasswordResetUiState(
+    val sendingCode: Boolean = false,
+    val busy: Boolean = false,
+    val codeSentCount: Int = 0,
+    @StringRes val errorRes: Int? = null
+)
+
 class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = SupabaseAuthRepository.get(app)
@@ -65,6 +73,8 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     val nicknameState: StateFlow<NicknameUiState> = _nicknameState.asStateFlow()
     private val _deletionState = MutableStateFlow(AccountDeletionUiState())
     val deletionState: StateFlow<AccountDeletionUiState> = _deletionState.asStateFlow()
+    private val _passwordResetState = MutableStateFlow(PasswordResetUiState())
+    val passwordResetState: StateFlow<PasswordResetUiState> = _passwordResetState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -172,6 +182,87 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetDeletionState() {
         _deletionState.update { AccountDeletionUiState() }
+    }
+
+    fun clearPasswordResetState() {
+        _passwordResetState.update { PasswordResetUiState() }
+    }
+
+    /** 找回密码第一步：确认邮箱已注册后发送验证码。 */
+    fun sendPasswordResetCode(email: String) {
+        if (!AuthInputValidator.isValidEmail(email)) {
+            resetError(R.string.auth_invalid_email)
+            return
+        }
+        if (_passwordResetState.value.sendingCode) return
+        viewModelScope.launch {
+            _passwordResetState.update { it.copy(sendingCode = true) }
+            try {
+                if (!repo.isEmailRegistered(email.trim())) {
+                    resetError(R.string.auth_email_not_registered)
+                    return@launch
+                }
+                repo.sendPasswordResetCode(email.trim())
+                _passwordResetState.update {
+                    it.copy(codeSentCount = it.codeSentCount + 1, errorRes = null)
+                }
+                _uiState.update {
+                    it.copy(messageRes = R.string.auth_otp_sent, messageIsError = false)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                resetError(authErrorMessage(e))
+            } finally {
+                _passwordResetState.update { it.copy(sendingCode = false) }
+            }
+        }
+    }
+
+    /**
+     * 找回密码第二步：邮箱验证码校验通过后设置新密码。
+     * 临时会话不保存，成功后回到登录页用新密码登录。
+     */
+    fun resetPassword(
+        email: String,
+        code: String,
+        newPassword: String,
+        onSuccess: () -> Unit
+    ) {
+        if (!AuthInputValidator.isValidEmail(email)) {
+            resetError(R.string.auth_invalid_email)
+            return
+        }
+        if (!AuthInputValidator.isValidOtpCode(code)) {
+            resetError(R.string.auth_otp_required)
+            return
+        }
+        if (newPassword.length < AuthInputValidator.MIN_PASSWORD_LENGTH) {
+            resetError(R.string.auth_password_short)
+            return
+        }
+        if (_passwordResetState.value.busy) return
+        viewModelScope.launch {
+            _passwordResetState.update { it.copy(busy = true, errorRes = null) }
+            try {
+                repo.resetPassword(email.trim(), code.trim(), newPassword)
+                _passwordResetState.value = PasswordResetUiState()
+                _uiState.update {
+                    it.copy(messageRes = R.string.auth_reset_success, messageIsError = false)
+                }
+                onSuccess()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _passwordResetState.update { it.copy(busy = false) }
+                resetError(authErrorMessage(e))
+            }
+        }
+    }
+
+    private fun resetError(@StringRes messageRes: Int) {
+        _uiState.update { it.copy(messageRes = messageRes, messageIsError = true) }
+        _passwordResetState.update { it.copy(errorRes = messageRes) }
     }
 
     /** 注销前发送验证码到当前账号邮箱。 */

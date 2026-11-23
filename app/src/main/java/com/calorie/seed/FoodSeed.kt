@@ -37,6 +37,14 @@ object FoodSeed {
         FoodEntity(name = "紫薯", caloriesPer100g = 106, category = CAT_STAPLE, emoji = "🍠"),
         FoodEntity(name = "土豆", caloriesPer100g = 77, category = CAT_STAPLE, emoji = "🥔"),
         FoodEntity(name = "炒饭", caloriesPer100g = 186, category = CAT_STAPLE, emoji = "🍳"),
+        FoodEntity(name = "蒸米饭", caloriesPer100g = 116, category = CAT_STAPLE, emoji = "🍚"),
+        FoodEntity(name = "包子", caloriesPer100g = 220, category = CAT_STAPLE, emoji = "🥟"),
+        FoodEntity(name = "烙饼", caloriesPer100g = 280, category = CAT_STAPLE, emoji = "🫓"),
+        FoodEntity(name = "蔬菜粥", caloriesPer100g = 40, category = CAT_STAPLE, emoji = "🥣"),
+        FoodEntity(name = "油条", caloriesPer100g = 388, category = CAT_STAPLE, emoji = "🥖"),
+        FoodEntity(name = "葱油饼", caloriesPer100g = 325, category = CAT_STAPLE, emoji = "🫓"),
+        FoodEntity(name = "番茄炒蛋", caloriesPer100g = 89, category = CAT_STAPLE, emoji = "🍳"),
+        FoodEntity(name = "牛肉面", caloriesPer100g = 130, category = CAT_STAPLE, emoji = "🍜"),
 
         // 肉蛋
         FoodEntity(name = "鸡胸肉", caloriesPer100g = 133, category = CAT_MEAT, emoji = "🍗"),
@@ -56,6 +64,14 @@ object FoodSeed {
         FoodEntity(name = "虾仁炖豆腐", caloriesPer100g = 96, category = CAT_MEAT, emoji = "🍲"),
         FoodEntity(name = "豆腐", caloriesPer100g = 82, category = CAT_MEAT, emoji = "🍢"),
         FoodEntity(name = "香肠", caloriesPer100g = 508, category = CAT_MEAT, emoji = "🌭"),
+        FoodEntity(name = "五花肉", caloriesPer100g = 395, category = CAT_MEAT, emoji = "🥓"),
+        FoodEntity(name = "排骨", caloriesPer100g = 264, category = CAT_MEAT, emoji = "🍖"),
+        FoodEntity(name = "鸡翅", caloriesPer100g = 194, category = CAT_MEAT, emoji = "🍗"),
+        FoodEntity(name = "卤蛋", caloriesPer100g = 158, category = CAT_MEAT, emoji = "🥚"),
+        FoodEntity(name = "带鱼", caloriesPer100g = 127, category = CAT_MEAT, emoji = "🐟"),
+        FoodEntity(name = "螃蟹", caloriesPer100g = 102, category = CAT_MEAT, emoji = "🦀"),
+        FoodEntity(name = "鱿鱼", caloriesPer100g = 75, category = CAT_MEAT, emoji = "🦑"),
+        FoodEntity(name = "蛤蜊", caloriesPer100g = 62, category = CAT_MEAT, emoji = "🦪"),
 
         // 蔬菜
         FoodEntity(name = "西兰花", caloriesPer100g = 36, category = CAT_VEG, emoji = "🥦"),
@@ -74,6 +90,14 @@ object FoodSeed {
         FoodEntity(name = "白菜", caloriesPer100g = 17, category = CAT_VEG, emoji = "🥬"),
         FoodEntity(name = "茄子", caloriesPer100g = 23, category = CAT_VEG, emoji = "🍆"),
         FoodEntity(name = "蔬菜沙拉", caloriesPer100g = 65, category = CAT_VEG, emoji = "🥗"),
+        FoodEntity(name = "莲藕", caloriesPer100g = 74, category = CAT_VEG, emoji = "🪷"),
+        FoodEntity(name = "洋葱", caloriesPer100g = 40, category = CAT_VEG, emoji = "🧅"),
+        FoodEntity(name = "大蒜", caloriesPer100g = 126, category = CAT_VEG, emoji = "🧄"),
+        FoodEntity(name = "豆角", caloriesPer100g = 30, category = CAT_VEG, emoji = "🫛"),
+        FoodEntity(name = "南瓜", caloriesPer100g = 23, category = CAT_VEG, emoji = "🎃"),
+        FoodEntity(name = "苦瓜", caloriesPer100g = 22, category = CAT_VEG, emoji = "🥒"),
+        FoodEntity(name = "豆芽", caloriesPer100g = 30, category = CAT_VEG, emoji = "🌱"),
+        FoodEntity(name = "西葫芦", caloriesPer100g = 19, category = CAT_VEG, emoji = "🥒"),
 
         // 水果
         FoodEntity(name = "苹果", caloriesPer100g = 53, category = CAT_FRUIT, emoji = "🍎"),
@@ -88,6 +112,14 @@ object FoodSeed {
         FoodEntity(name = "猕猴桃", caloriesPer100g = 61, category = CAT_FRUIT, emoji = "🥝"),
         FoodEntity(name = "火龙果", caloriesPer100g = 55, category = CAT_FRUIT, emoji = "🐉"),
         FoodEntity(name = "牛油果", caloriesPer100g = 171, category = CAT_FRUIT, emoji = "🥑"),
+        FoodEntity(name = "芒果", caloriesPer100g = 35, category = CAT_FRUIT, emoji = "🥭"),
+        FoodEntity(name = "菠萝", caloriesPer100g = 44, category = CAT_FRUIT, emoji = "🍍"),
+        FoodEntity(name = "葡萄柚", caloriesPer100g = 42, category = CAT_FRUIT, emoji = "🍊"),
+        FoodEntity(name = "柠檬", caloriesPer100g = 35, category = CAT_FRUIT, emoji = "🍋"),
+        FoodEntity(name = "樱桃", caloriesPer100g = 46, category = CAT_FRUIT, emoji = "🍒"),
+        FoodEntity(name = "甜瓜", caloriesPer100g = 26, category = CAT_FRUIT, emoji = "🍈"),
+        FoodEntity(name = "木瓜", caloriesPer100g = 29, category = CAT_FRUIT, emoji = "🥭"),
+        FoodEntity(name = "椰子", caloriesPer100g = 241, category = CAT_FRUIT, emoji = "🥥"),
 
         // 奶类
         FoodEntity(name = "牛奶", caloriesPer100g = 54, category = CAT_DAIRY, emoji = "🥛"),
@@ -96,6 +128,12 @@ object FoodSeed {
         FoodEntity(name = "希腊酸奶", caloriesPer100g = 97, category = CAT_DAIRY, emoji = "🍶"),
         FoodEntity(name = "豆奶", caloriesPer100g = 42, category = CAT_DAIRY, emoji = "🥛"),
         FoodEntity(name = "奶酪", caloriesPer100g = 328, category = CAT_DAIRY, emoji = "🧀"),
+        FoodEntity(name = "脱脂牛奶", caloriesPer100g = 33, category = CAT_DAIRY, emoji = "🥛"),
+        FoodEntity(name = "炼乳", caloriesPer100g = 321, category = CAT_DAIRY, emoji = "🥫"),
+        FoodEntity(name = "豆腐脑", caloriesPer100g = 47, category = CAT_DAIRY, emoji = "🥣"),
+        FoodEntity(name = "豆干", caloriesPer100g = 152, category = CAT_DAIRY, emoji = "🍢"),
+        FoodEntity(name = "腐竹", caloriesPer100g = 459, category = CAT_DAIRY, emoji = "🥢"),
+        FoodEntity(name = "豆腐皮", caloriesPer100g = 409, category = CAT_DAIRY, emoji = "🥢"),
 
         // 零食
         FoodEntity(name = "薯片", caloriesPer100g = 536, category = CAT_SNACK, emoji = "🍟"),
@@ -108,6 +146,14 @@ object FoodSeed {
         FoodEntity(name = "爆米花", caloriesPer100g = 387, category = CAT_SNACK, emoji = "🍿"),
         FoodEntity(name = "汉堡", caloriesPer100g = 266, category = CAT_SNACK, emoji = "🍔"),
         FoodEntity(name = "披萨", caloriesPer100g = 266, category = CAT_SNACK, emoji = "🍕"),
+        FoodEntity(name = "甜甜圈", caloriesPer100g = 452, category = CAT_SNACK, emoji = "🍩"),
+        FoodEntity(name = "布丁", caloriesPer100g = 145, category = CAT_SNACK, emoji = "🍮"),
+        FoodEntity(name = "麻薯", caloriesPer100g = 235, category = CAT_SNACK, emoji = "🍡"),
+        FoodEntity(name = "月饼", caloriesPer100g = 424, category = CAT_SNACK, emoji = "🥮"),
+        FoodEntity(name = "蛋黄酥", caloriesPer100g = 386, category = CAT_SNACK, emoji = "🥮"),
+        FoodEntity(name = "威化饼干", caloriesPer100g = 470, category = CAT_SNACK, emoji = "🍪"),
+        FoodEntity(name = "麻花", caloriesPer100g = 395, category = CAT_SNACK, emoji = "🥨"),
+        FoodEntity(name = "红枣", caloriesPer100g = 287, category = CAT_SNACK, emoji = "🫘"),
 
         // 饮品
         FoodEntity(name = "黑咖啡", caloriesPer100g = 2, category = CAT_DRINK, emoji = "☕"),
@@ -117,6 +163,14 @@ object FoodSeed {
         FoodEntity(name = "可乐", caloriesPer100g = 43, category = CAT_DRINK, emoji = "🥤"),
         FoodEntity(name = "橙汁", caloriesPer100g = 46, category = CAT_DRINK, emoji = "🧃"),
         FoodEntity(name = "啤酒", caloriesPer100g = 32, category = CAT_DRINK, emoji = "🍺"),
-        FoodEntity(name = "矿泉水", caloriesPer100g = 0, category = CAT_DRINK, emoji = "💧")
+        FoodEntity(name = "矿泉水", caloriesPer100g = 0, category = CAT_DRINK, emoji = "💧"),
+        FoodEntity(name = "热豆浆", caloriesPer100g = 31, category = CAT_DRINK, emoji = "🥛"),
+        FoodEntity(name = "瓶装酸奶", caloriesPer100g = 72, category = CAT_DRINK, emoji = "🥤"),
+        FoodEntity(name = "柠檬气泡水", caloriesPer100g = 25, category = CAT_DRINK, emoji = "🥤"),
+        FoodEntity(name = "葡萄汁", caloriesPer100g = 54, category = CAT_DRINK, emoji = "🧃"),
+        FoodEntity(name = "椰子水", caloriesPer100g = 19, category = CAT_DRINK, emoji = "🥥"),
+        FoodEntity(name = "蜂蜜水", caloriesPer100g = 32, category = CAT_DRINK, emoji = "🍯"),
+        FoodEntity(name = "果味汽水", caloriesPer100g = 42, category = CAT_DRINK, emoji = "🥤"),
+        FoodEntity(name = "热可可", caloriesPer100g = 70, category = CAT_DRINK, emoji = "☕")
     )
 }

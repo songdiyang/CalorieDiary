@@ -60,6 +60,9 @@ import com.calorie.diary.data.supabase.SharedFood
 import com.calorie.diary.ui.components.CalorieShareCard
 import com.calorie.diary.ui.components.ChatFunctionTile
 import com.calorie.diary.ui.components.CuteButton
+import com.calorie.diary.ui.components.RiceMountainCard
+import com.calorie.diary.ui.components.riceBowlsOf
+import com.calorie.diary.ui.components.riceCaloriesOf
 import com.calorie.diary.ui.components.SoftCard
 import com.calorie.diary.ui.components.SparkFlame
 import com.calorie.diary.ui.components.UserAvatar
@@ -109,12 +112,26 @@ fun GroupChatScreen(groupId: String, onBack: () -> Unit, onOpenInfo: () -> Unit 
     GroupChatContent(
         state, dayTotal, onBack, vm::sendText, identity?.avatarEmoji.orEmpty(),
         onInviteMembers = vm::inviteMembers,
-        onOpenInfo = onOpenInfo
-    ) {
-        vm.shareCalories(
-            calories = dayTotal,
-            entryDate = selectedDate,
-            items = dayEntries.map {
+        onOpenInfo = onOpenInfo,
+        onShare = {
+            vm.shareCalories(
+                calories = dayTotal,
+                entryDate = selectedDate,
+                items = dayEntries.map {
+                    SharedFood(
+                        name = it.foodName,
+                        emoji = it.emoji,
+                        grams = it.grams,
+                        calories = it.calories,
+                        meal = it.mealType
+                    )
+                }
+            )
+        },
+        onShareRice = {
+            val riceItems = dayEntries.filter {
+                it.foodName.contains("饭") || it.emoji.contains("🍚") || it.emoji.contains("🍙")
+            }.map {
                 SharedFood(
                     name = it.foodName,
                     emoji = it.emoji,
@@ -123,8 +140,16 @@ fun GroupChatScreen(groupId: String, onBack: () -> Unit, onOpenInfo: () -> Unit 
                     meal = it.mealType
                 )
             }
-        )
-    }
+            val fallback = listOf(SharedFood("米饭", "🍚", 150, 232, 1))
+            val items = riceItems.ifEmpty { fallback }
+            vm.shareCalories(
+                calories = riceCaloriesOf(items) ?: fallback.first().calories,
+                entryDate = selectedDate,
+                items = items,
+                messageType = "rice_mountain"
+            )
+        }
+    )
 }
 
 @Composable
@@ -136,7 +161,8 @@ private fun GroupChatContent(
     myAvatarEmoji: String = "",
     onInviteMembers: (List<String>) -> Unit = {},
     onOpenInfo: () -> Unit = {},
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onShareRice: () -> Unit = {}
 ) {
     var input by remember { mutableStateOf("") }
     var panelOpen by remember { mutableStateOf(false) }
@@ -300,6 +326,14 @@ private fun GroupChatContent(
                         onShare()
                     }
                 )
+                ChatFunctionTile(
+                    iconRes = R.drawable.ic_food_rice,
+                    label = stringResource(R.string.chat_share_rice),
+                    onClick = {
+                        panelOpen = false
+                        onShareRice()
+                    }
+                )
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
         }
@@ -460,7 +494,7 @@ private fun GroupMessageBubble(
                         .clip(bubbleShape)
                         .then(
                             when {
-                                message.messageType == "calorie_share" -> Modifier.background(YellowSoft)
+                                message.messageType == "calorie_share" || message.messageType == "rice_mountain" -> Modifier.background(YellowSoft)
                                 mine -> Modifier.background(
                                     Brush.verticalGradient(listOf(Orange, OrangeDeep))
                                 )
@@ -470,7 +504,7 @@ private fun GroupMessageBubble(
                         .border(
                             1.dp,
                             when {
-                                message.messageType == "calorie_share" -> Yellow.copy(alpha = 0.55f)
+                                message.messageType == "calorie_share" || message.messageType == "rice_mountain" -> Yellow.copy(alpha = 0.55f)
                                 mine -> Color.White.copy(alpha = 0.35f)
                                 else -> Hairline
                             },
@@ -478,7 +512,12 @@ private fun GroupMessageBubble(
                         )
                         .padding(horizontal = 13.dp, vertical = 10.dp)
                 ) {
-                    if (message.messageType == "calorie_share") {
+                    if (message.messageType == "rice_mountain") {
+                        RiceMountainCard(
+                            bowls = riceBowlsOf(message.items),
+                            calories = message.calories
+                        )
+                    } else if (message.messageType == "calorie_share") {
                         CalorieShareCard(message.id, message.calories, message.items)
                     } else {
                         Text(
@@ -521,6 +560,10 @@ internal fun GroupChatPreviewContent() {
                         SharedFood("煎蛋", "🍳", 60, 130, 0),
                         SharedFood("鸡胸肉饭", "🍚", 300, 390, 1)
                     )
+                ),
+                GroupMessage(
+                    3, "friend", "今日米饭山", "rice_mountain", 232, "2026-11-14", "",
+                    items = listOf(SharedFood("米饭", "🍚", 150, 232, 1))
                 )
             )
         ),

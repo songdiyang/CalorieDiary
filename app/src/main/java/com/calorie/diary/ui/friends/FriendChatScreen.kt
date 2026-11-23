@@ -60,6 +60,9 @@ import com.calorie.diary.data.supabase.SharedFood
 import com.calorie.diary.ui.components.CalorieShareCard
 import com.calorie.diary.ui.components.ChatFunctionTile
 import com.calorie.diary.ui.components.CuteButton
+import com.calorie.diary.ui.components.RiceMountainCard
+import com.calorie.diary.ui.components.riceBowlsOf
+import com.calorie.diary.ui.components.riceCaloriesOf
 import com.calorie.diary.ui.components.UserAvatar
 import com.calorie.diary.ui.home.appVm
 import com.calorie.diary.ui.theme.CardWhite
@@ -127,6 +130,27 @@ fun FriendChatScreen(friendId: String, onBack: () -> Unit, onOpenPersonal: (Stri
                 }
             )
         },
+        onShareRice = {
+            val riceItems = dayEntries.filter {
+                it.foodName.contains("饭") || it.emoji.contains("🍚") || it.emoji.contains("🍙")
+            }.map {
+                SharedFood(
+                    name = it.foodName,
+                    emoji = it.emoji,
+                    grams = it.grams,
+                    calories = it.calories,
+                    meal = it.mealType
+                )
+            }
+            val fallback = listOf(SharedFood("米饭", "🍚", 150, 232, 1))
+            val items = riceItems.ifEmpty { fallback }
+            vm.shareCalories(
+                calories = riceCaloriesOf(items) ?: fallback.first().calories,
+                entryDate = selectedDate,
+                items = items,
+                messageType = "rice_mountain"
+            )
+        },
         onBindRelation = vm::bindRelation,
         myAvatarEmoji = identity?.avatarEmoji.orEmpty(),
         onOpenPersonal = { onOpenPersonal(friendId) }
@@ -140,6 +164,7 @@ private fun ChatContent(
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onShareCalories: () -> Unit = {},
+    onShareRice: () -> Unit = {},
     onBindRelation: (String) -> Unit = {},
     myAvatarEmoji: String = "",
     onOpenPersonal: () -> Unit = {}
@@ -266,6 +291,10 @@ private fun ChatContent(
             onShareCalories = {
                 panelOpen = false
                 onShareCalories()
+            },
+            onShareRice = {
+                panelOpen = false
+                onShareRice()
             }
         )
     }
@@ -291,7 +320,8 @@ private fun ChatComposer(
     panelOpen: Boolean,
     onTogglePanel: () -> Unit,
     onSend: () -> Unit,
-    onShareCalories: () -> Unit
+    onShareCalories: () -> Unit,
+    onShareRice: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().background(CardWhite)) {
         if (panelOpen) {
@@ -306,6 +336,11 @@ private fun ChatComposer(
                     iconRes = R.drawable.meal_lunch,
                     label = stringResource(R.string.chat_share_today),
                     onClick = onShareCalories
+                )
+                ChatFunctionTile(
+                    iconRes = R.drawable.ic_food_rice,
+                    label = stringResource(R.string.chat_share_rice),
+                    onClick = onShareRice
                 )
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
@@ -622,7 +657,8 @@ private fun MessageList(
                         Modifier.weight(1f),
                         contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart
                     ) {
-                        val calorie = message.messageType == "calorie_share"
+                        val calorie = message.messageType == "calorie_share" ||
+                                message.messageType == "rice_mountain"
                         // 四个角统一圆角，不做对话气泡的尾巴样式
                         val bubbleShape = RoundedCornerShape(18.dp)
                         Box(
@@ -650,7 +686,12 @@ private fun MessageList(
                                 )
                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
-                            if (calorie) {
+                            if (message.messageType == "rice_mountain") {
+                                RiceMountainCard(
+                                    bowls = riceBowlsOf(message.items),
+                                    calories = message.calories
+                                )
+                            } else if (calorie) {
                                 CalorieShareCard(message.id, message.calories, message.items)
                             } else {
                                 Text(
@@ -696,6 +737,11 @@ internal fun ChatPreviewContent() {
                         SharedFood("煎蛋", "🍳", 60, 130, 0),
                         SharedFood("鸡胸肉饭", "🍚", 300, 390, 1)
                     )
+                ),
+                FriendMessage(
+                    4, "me", "今日米饭山", "",
+                    messageType = "rice_mountain", calories = 348, entryDate = "2026-11-17",
+                    items = listOf(SharedFood("米饭", "🍚", 300, 348, 1))
                 )
             )
         ),

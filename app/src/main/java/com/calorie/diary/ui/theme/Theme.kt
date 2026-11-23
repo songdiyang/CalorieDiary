@@ -41,16 +41,17 @@ private val appTypography = Typography(
 
 @Composable
 fun CalorieDiaryTheme(content: @Composable () -> Unit) {
+    val palette = AppThemePalettes.of(ThemeController.theme)
     MaterialTheme(
         colorScheme = MaterialTheme.colorScheme.copy(
-            primary = Orange,
-            onPrimary = CardWhite,
-            secondary = Yellow,
-            background = ScreenBg,
-            onBackground = Ink,
-            surface = CardWhite,
-            onSurface = Ink,
-            outline = Hairline
+            primary = palette.primary,
+            onPrimary = palette.cardWhite,
+            secondary = palette.yellow,
+            background = palette.screenBg,
+            onBackground = palette.ink,
+            surface = palette.cardWhite,
+            onSurface = palette.ink,
+            outline = palette.hairline
         ),
         typography = appTypography,
         shapes = CuteShapes,

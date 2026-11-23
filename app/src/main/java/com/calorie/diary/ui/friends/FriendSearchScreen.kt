@@ -58,26 +58,23 @@ import com.calorie.diary.ui.theme.ScreenBg
 import com.calorie.diary.viewmodel.FriendsUiState
 import com.calorie.diary.viewmodel.FriendsViewModel
 
-/** 独立的搜索好友页面：按用户名模糊或公开 UID 搜索，可直接加好友或发消息。 */
+/** 独立的找人页面：按用户名模糊或公开 UID 搜索；先关注，互关后才能申请好友。 */
 @Composable
 fun FriendSearchScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit) {
     val vm: FriendsViewModel = viewModel()
     val state by vm.uiState.collectAsState()
-    // 从聊天返回后保留搜索词与已发送状态。
+    // 从聊天返回后保留搜索词。
     var query by rememberSaveable { mutableStateOf("") }
-    var pendingIds by rememberSaveable { mutableStateOf(listOf<String>()) }
 
     FriendSearchContent(
         state = state,
         query = query,
-        pendingIds = pendingIds,
         onQueryChange = {
             query = it
             vm.searchUsers(it)
         },
-        onAddFriend = { userId ->
-            if (vm.addFriend(userId)) pendingIds = pendingIds + userId
-        },
+        onFollow = { vm.follow(it) },
+        onApplyFriend = { vm.applyFriend(it) },
         onOpenChat = onOpenChat,
         onBack = onBack
     )
@@ -87,9 +84,9 @@ fun FriendSearchScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit) {
 internal fun FriendSearchContent(
     state: FriendsUiState,
     query: String,
-    pendingIds: List<String>,
     onQueryChange: (String) -> Unit,
-    onAddFriend: (String) -> Unit,
+    onFollow: (String) -> Unit,
+    onApplyFriend: (String) -> Unit,
     onOpenChat: (String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -161,9 +158,9 @@ internal fun FriendSearchContent(
                 items(state.searchResults, key = { it.userId }) { user ->
                     SearchResultRow(
                         user = user,
-                        isFriend = state.friends.any { it.userId == user.userId },
-                        pending = user.userId in pendingIds,
-                        onAdd = { onAddFriend(user.userId) },
+                        enabled = !state.busy,
+                        onFollow = { onFollow(user.userId) },
+                        onApplyFriend = { onApplyFriend(user.userId) },
                         onOpenChat = { onOpenChat(user.userId) }
                     )
                 }
@@ -175,9 +172,9 @@ internal fun FriendSearchContent(
 @Composable
 private fun SearchResultRow(
     user: UserSearchResult,
-    isFriend: Boolean,
-    pending: Boolean,
-    onAdd: () -> Unit,
+    enabled: Boolean,
+    onFollow: () -> Unit,
+    onApplyFriend: () -> Unit,
     onOpenChat: () -> Unit
 ) {
     Row(
@@ -210,22 +207,78 @@ private fun SearchResultRow(
                 color = InkLight
             )
         }
-        when {
-            isFriend -> SearchRowAction(stringResource(R.string.friends_send_message), OrangeDeep, onOpenChat)
-            pending -> Text(
-                stringResource(R.string.friends_request_pending),
-                fontFamily = CuteFont,
-                fontSize = 13.sp,
-                color = InkLight,
-                modifier = Modifier.padding(8.dp)
-            )
-            else -> SearchRowAction(stringResource(R.string.friends_add_short), OrangeDeep, onAdd)
-        }
+        SearchResultAction(
+            user = user,
+            enabled = enabled,
+            onFollow = onFollow,
+            onApplyFriend = onApplyFriend,
+            onOpenChat = onOpenChat
+        )
+    }
+}
+
+/** 按关注/互关/好友申请状态决定按钮：只有互关后才出现“申请好友”。 */
+@Composable
+private fun SearchResultAction(
+    user: UserSearchResult,
+    enabled: Boolean,
+    onFollow: () -> Unit,
+    onApplyFriend: () -> Unit,
+    onOpenChat: () -> Unit
+) {
+    when {
+        user.isFriend -> SearchRowAction(
+            text = stringResource(R.string.friends_send_message),
+            color = OrangeDeep,
+            enabled = enabled,
+            onClick = onOpenChat
+        )
+        user.hasSentFriendRequest -> SearchRowAction(
+            text = stringResource(R.string.friends_request_pending),
+            color = InkLight,
+            enabled = false,
+            onClick = {}
+        )
+        user.hasIncomingFriendRequest -> SearchRowAction(
+            text = stringResource(R.string.friends_request_incoming),
+            color = InkLight,
+            enabled = false,
+            onClick = {}
+        )
+        user.isMutual -> SearchRowAction(
+            text = stringResource(R.string.friends_apply_action),
+            color = OrangeDeep,
+            enabled = enabled,
+            onClick = onApplyFriend
+        )
+        user.isFollowing -> SearchRowAction(
+            text = stringResource(R.string.friends_following_state),
+            color = InkLight,
+            enabled = false,
+            onClick = {}
+        )
+        user.isFollowedBy -> SearchRowAction(
+            text = stringResource(R.string.friends_follow_back),
+            color = OrangeDeep,
+            enabled = enabled,
+            onClick = onFollow
+        )
+        else -> SearchRowAction(
+            text = stringResource(R.string.friends_follow_action),
+            color = OrangeDeep,
+            enabled = enabled,
+            onClick = onFollow
+        )
     }
 }
 
 @Composable
-private fun SearchRowAction(text: String, color: Color, onClick: () -> Unit) {
+private fun SearchRowAction(
+    text: String,
+    color: Color,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
     Text(
         text,
         fontFamily = CuteFont,
@@ -234,6 +287,7 @@ private fun SearchRowAction(text: String, color: Color, onClick: () -> Unit) {
         color = color,
         modifier = Modifier
             .clickable(
+                enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
@@ -264,13 +318,16 @@ internal fun FriendSearchPreviewContent() {
             searching = false,
             searchResults = listOf(
                 UserSearchResult("u1", "小兔", "", "100234"),
-                UserSearchResult("u2", "妍少 7.25", "", "100235")
+                UserSearchResult(
+                    "u2", "妍少 7.25", "", "100235",
+                    isFollowing = true, isFollowedBy = true
+                )
             )
         ),
         query = "小",
-        pendingIds = listOf("u2"),
         onQueryChange = {},
-        onAddFriend = {},
+        onFollow = {},
+        onApplyFriend = {},
         onOpenChat = {},
         onBack = {}
     )

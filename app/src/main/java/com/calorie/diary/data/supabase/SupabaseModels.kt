@@ -128,8 +128,15 @@ data class UserSearchResult(
     val userId: String,
     val nickname: String,
     val avatarEmoji: String,
-    val publicId: String = ""
-)
+    val publicId: String = "",
+    val isFollowing: Boolean = false,
+    val isFollowedBy: Boolean = false,
+    val isFriend: Boolean = false,
+    val hasSentFriendRequest: Boolean = false,
+    val hasIncomingFriendRequest: Boolean = false
+) {
+    val isMutual: Boolean get() = isFollowing && isFollowedBy
+}
 
 data class FriendRequestEntry(
     val userId: String,
@@ -138,10 +145,20 @@ data class FriendRequestEntry(
     val requestedAt: String
 )
 
-/** add_friend RPC 的结果状态：request_sent 表示只建立了单向关注。 */
+/** 粉丝关注通知：单向关注时可回关，互关且尚未成为好友时可申请好友。 */
+data class FollowNoticeEntry(
+    val userId: String,
+    val nickname: String,
+    val avatarEmoji: String,
+    val followedAt: String,
+    val mutual: Boolean = false
+)
+
+/** add_friend RPC 的结果状态：follow_required 表示尚未互相关注，request_sent 表示好友申请已发出。 */
 object FriendAddStatus {
     const val NOT_FOUND = "not_found"
     const val ALREADY_FRIENDS = "already_friends"
+    const val FOLLOW_REQUIRED = "follow_required"
     const val REQUEST_SENT = "request_sent"
     const val FRIENDS = "friends"
 }
@@ -162,7 +179,8 @@ data class SocialUserEntry(
     val userId: String,
     val nickname: String,
     val avatarEmoji: String,
-    val mutual: Boolean
+    val mutual: Boolean,
+    val followedAt: String = ""
 )
 
 /** 他人主页只暴露公开资料，不包含任何饮食数据。 */
@@ -173,6 +191,11 @@ data class PublicProfile(
     val publicId: String,
     val isSelf: Boolean,
     val isFriend: Boolean,
+    val isFollowing: Boolean = false,
+    val isFollowedBy: Boolean = false,
+    val isMutual: Boolean = false,
+    val hasSentFriendRequest: Boolean = false,
+    val hasIncomingFriendRequest: Boolean = false,
     val level: Int = 1
 )
 
@@ -295,6 +318,7 @@ data class ActivityPrivacyInfo(
 data class FriendsOverview(
     val myUserId: String,
     val friends: List<FriendEntry>,
+    val followNotices: List<FollowNoticeEntry> = emptyList(),
     val requests: List<FriendRequestEntry> = emptyList()
 )
 

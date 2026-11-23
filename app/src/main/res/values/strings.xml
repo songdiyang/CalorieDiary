@@ -202,6 +202,11 @@
     <string name="settings_recommend_hint">按你的资料，减脂期建议每日约 %1$d 千卡，点击推荐按钮可直接采用</string>
     <string name="settings_daily_calorie">每日热量目标</string>
     <string name="settings_daily_water">每日饮水目标</string>
+    <string name="settings_appearance_title">外观</string>
+    <string name="settings_appearance_hint">选择喜欢的主题色，立即应用到整个应用</string>
+    <string name="settings_theme_mint">薄荷绿</string>
+    <string name="settings_theme_sky">天空蓝</string>
+    <string name="settings_theme_sunset">暖阳橙</string>
     <string name="settings_about_title">关于</string>
     <string name="settings_version">版本</string>
     <string name="settings_view">查看</string>
@@ -247,6 +252,7 @@
     <string name="profile_login_action">点击登录</string>
     <string name="profile_user_id">用户 ID：%1$s</string>
     <string name="profile_copy_id">复制 ID</string>
+    <string name="profile_id_copied">已复制 ID</string>
     <string name="profile_current_weight">当前体重</string>
     <string name="profile_level_streak">连续记录 %1$d 天</string>
     <string name="profile_records_title">我的记录</string>
@@ -313,6 +319,12 @@
     <string name="checkin_completed_action">已签到</string>
     <string name="checkin_success_exp">签到成功：+%1$d 金币、+%2$d 经验</string>
     <string name="checkin_success_doubled">连续 %1$d 天签到，奖励翻倍：+%2$d 金币、+%3$d 经验</string>
+    <string name="checkin_success_title">签到成功</string>
+    <string name="checkin_reward_coins">+%1$d 金币</string>
+    <string name="checkin_reward_exp">+%1$d 经验</string>
+    <string name="checkin_streak_note">已连续签到 %1$d 天</string>
+    <string name="checkin_doubled_note">连续 %1$d 天签到，奖励翻倍</string>
+    <string name="checkin_confirm">开心收下</string>
     <string name="level_badge">Lv.%1$d</string>
     <string name="level_up">升级啦！当前 Lv.%1$d</string>
     <string name="daily_task_title">每日任务</string>
@@ -378,6 +390,13 @@
     <string name="auth_register_subtitle">使用邮箱注册，验证邮箱验证码后即可登录</string>
     <string name="auth_no_account">没有账号？注册账号</string>
     <string name="auth_have_account">已有账号？返回登录</string>
+    <string name="auth_forgot_password">忘记密码？</string>
+    <string name="auth_reset_title">重置密码</string>
+    <string name="auth_reset_subtitle">输入注册邮箱并获取验证码，验证身份后即可设置新密码</string>
+    <string name="auth_reset_action">重置密码</string>
+    <string name="auth_reset_success">密码已重置，请使用新密码登录</string>
+    <string name="auth_email_not_registered">该邮箱尚未注册，请先注册账号</string>
+    <string name="auth_password_short">密码至少需要 8 位</string>
     <string name="auth_privacy_prefix">登录即表示你已阅读并同意《</string>
     <string name="auth_privacy_suffix">》</string>
         <string name="auth_not_configured">云服务尚未配置，请检查 Supabase 构建参数</string>
@@ -426,7 +445,7 @@
     <string name="auth_weak_password">密码强度不足，请设置更复杂的密码</string>
     <string name="auth_session_expired">登录已过期，请重新登录</string>
 
-    <!-- 食物名（89） -->
+    <!-- 食物名（143） -->
     <string name="food_rice">米饭</string>
     <string name="food_grain_rice">五谷杂粮饭</string>
     <string name="food_congee">白粥</string>
@@ -516,6 +535,60 @@
     <string name="food_orange_juice">橙汁</string>
     <string name="food_beer">啤酒</string>
     <string name="food_water_bottle">矿泉水</string>
+    <string name="food_cooked_rice">蒸米饭</string>
+    <string name="food_steamed_bun_basket">包子</string>
+    <string name="food_flatbread">烙饼</string>
+    <string name="food_veggie_congee">蔬菜粥</string>
+    <string name="food_fried_dough">油条</string>
+    <string name="food_pancake">葱油饼</string>
+    <string name="food_tomato_egg">番茄炒蛋</string>
+    <string name="food_beef_noodle">牛肉面</string>
+    <string name="food_pork_belly">五花肉</string>
+    <string name="food_pork_ribs">排骨</string>
+    <string name="food_chicken_wing">鸡翅</string>
+    <string name="food_marinated_egg">卤蛋</string>
+    <string name="food_hairtail">带鱼</string>
+    <string name="food_crab">螃蟹</string>
+    <string name="food_squid">鱿鱼</string>
+    <string name="food_clam">蛤蜊</string>
+    <string name="food_lotus_root">莲藕</string>
+    <string name="food_onion">洋葱</string>
+    <string name="food_garlic">大蒜</string>
+    <string name="food_green_beans">豆角</string>
+    <string name="food_pumpkin">南瓜</string>
+    <string name="food_bitter_melon">苦瓜</string>
+    <string name="food_bean_sprout">豆芽</string>
+    <string name="food_zucchini">西葫芦</string>
+    <string name="food_mango">芒果</string>
+    <string name="food_pineapple">菠萝</string>
+    <string name="food_grapefruit">葡萄柚</string>
+    <string name="food_lemon">柠檬</string>
+    <string name="food_cherry">樱桃</string>
+    <string name="food_melon">甜瓜</string>
+    <string name="food_papaya">木瓜</string>
+    <string name="food_coconut">椰子</string>
+    <string name="food_skim_milk">脱脂牛奶</string>
+    <string name="food_condensed_milk">炼乳</string>
+    <string name="food_tofu_pudding">豆腐脑</string>
+    <string name="food_dried_tofu">豆干</string>
+    <string name="food_dried_bean_curds">腐竹</string>
+    <string name="food_tofu_skin">豆腐皮</string>
+    <string name="food_donut">甜甜圈</string>
+    <string name="food_pudding">布丁</string>
+    <string name="food_mochi">麻薯</string>
+    <string name="food_mooncake">月饼</string>
+    <string name="food_egg_yolk_pastry">蛋黄酥</string>
+    <string name="food_wafer">威化饼干</string>
+    <string name="food_mahua">麻花</string>
+    <string name="food_red_date">红枣</string>
+    <string name="food_soy_milk_drink">热豆浆</string>
+    <string name="food_yogurt_drink">瓶装酸奶</string>
+    <string name="food_lemon_soda">柠檬气泡水</string>
+    <string name="food_grape_juice">葡萄汁</string>
+    <string name="food_coconut_water">椰子水</string>
+    <string name="food_honey_water">蜂蜜水</string>
+    <string name="food_soda_can">果味汽水</string>
+    <string name="food_hot_cocoa">热可可</string>
 
     <!-- 运动热量计算 -->
     <string name="tools_exercise">运动热量计算</string>
@@ -563,6 +636,8 @@
 
     <!-- 传火计划 -->
     <string name="settings_delete_account">注销账号</string>
+    <string name="settings_reset_password">重置密码</string>
+    <string name="settings_reset_password_hint">验证码将发送到 %1$s，验证通过后可设置新密码</string>
     <string name="delete_dialog_title">注销账号</string>
     <string name="delete_dialog_message">注销后会永久删除你的账号及全部云端数据（饮食记录、好友关系、聊天消息等），且无法恢复。请输入发送到当前邮箱的验证码以确认。</string>
     <string name="delete_dialog_cancel">取消</string>
@@ -589,12 +664,23 @@
         <string name="chat_delete">删除聊天</string>
     <string name="friends_search_local">搜索聊天</string>
     <string name="friends_search_global">输入用户名或用户 ID</string>
-    <string name="friends_search_title">搜索好友</string>
-    <string name="friends_search_hint">输入用户名或用户 ID，找到想添加的伙伴</string>
+    <string name="friends_search_title">搜索用户</string>
+    <string name="friends_search_hint">输入用户名或用户 ID，先关注对方</string>
     <string name="friends_send_message">发消息</string>
-    <string name="friends_request_pending">已发送</string>
+    <string name="friends_request_pending">已申请</string>
+    <string name="friends_request_incoming">待处理</string>
     <string name="friends_no_results">没有找到该用户</string>
-    <string name="friends_add_short">添加</string>
+    <string name="friends_add_short">关注</string>
+    <string name="friends_follow_section">关注</string>
+    <string name="friends_followed_you">关注了你</string>
+    <string name="friends_mutual_hint">你们已互相关注</string>
+    <string name="friends_follow_action">关注</string>
+    <string name="friends_following_state">已关注</string>
+    <string name="friends_follow_back">回关</string>
+    <string name="friends_apply_action">申请好友</string>
+    <string name="friends_followed">已关注</string>
+    <string name="friends_follow_mutual">已互相关注，现在可以申请好友了</string>
+    <string name="friends_follow_required">互相关注后才能申请好友</string>
     <string name="friends_start_chat">点击开始聊天</string>
     <string name="chat_title">好友聊天</string>
     <string name="chat_input_hint">发消息…</string>
@@ -618,11 +704,15 @@
     <string name="chat_calorie_expand_hint">点击看吃了什么</string>
     <string name="chat_calorie_collapse_hint">点击收起</string>
     <string name="chat_food_grams">%1$d 克</string>
+    <string name="rice_share_title">今日米饭山</string>
+    <string name="rice_share_bowls">吃了 %1$d 碗米饭</string>
+    <string name="rice_share_type">rice_mountain</string>
+    <string name="chat_share_rice">分享米饭山</string>
     <string name="friends_spark_days">火花 %1$d 天</string>
     <string name="chat_spark_hint">今天互发消息可点亮火花</string>
     <string name="friends_copied">已复制</string>
-    <string name="friends_add_title">添加好友</string>
-    <string name="friends_add_action">加好友</string>
+    <string name="friends_add_title">关注用户</string>
+    <string name="friends_add_action">关注用户</string>
     <string name="friends_empty">还没有好友，先邀请一位伙伴吧</string>
     <string name="friends_id_value">用户 ID %1$s</string>
     <string name="friends_login_required">登录后使用好友功能</string>
@@ -631,17 +721,17 @@
     <string name="friends_id_invalid">请输入正确的用户 ID（UUID）</string>
     <string name="friends_add_self">这是你自己的用户 ID，不能添加自己</string>
     <string name="friends_not_found">没有找到这个用户 ID，请检查后重试</string>
-    <string name="friends_added">好友添加成功</string>
+    <string name="friends_added">已成为好友</string>
     <string name="friends_busy">正在处理，请稍候</string>
     <string name="friends_removed">已删除好友</string>
-    <string name="friends_request_sent">好友请求已发送，对方同意后即可聊天</string>
+    <string name="friends_request_sent">好友申请已发送，对方同意后即可聊天</string>
     <string name="friends_already">你们已经是好友了</string>
-    <string name="friends_requests_title">好友请求</string>
-    <string name="friends_request_new">想加你为好友</string>
+    <string name="friends_requests_title">好友申请</string>
+    <string name="friends_request_new">申请成为你的好友</string>
     <string name="friends_request_accept">接受</string>
     <string name="friends_request_decline">拒绝</string>
-    <string name="friends_request_accepted">已互相关注，可以开始聊天了</string>
-    <string name="friends_request_declined">已拒绝好友请求</string>
+    <string name="friends_request_accepted">已通过好友申请，可以开始聊天了</string>
+    <string name="friends_request_declined">已拒绝好友申请</string>
 
     <!-- 关注 / 粉丝 / 互关 -->
     <string name="social_following">关注</string>

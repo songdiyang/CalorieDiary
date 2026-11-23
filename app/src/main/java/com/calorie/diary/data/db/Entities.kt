@@ -1,6 +1,7 @@
 package com.calorie.diary.data.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "foods")
@@ -61,4 +62,80 @@ data class WaterEntity(
     val date: String,
     val ml: Int,
     val ownerId: String = ""
+)
+
+/** 消息页会话列表缓存：按当前账号隔离，登录后可先展示上次的好友会话。 */
+@Entity(tableName = "cached_friends", primaryKeys = ["ownerId", "userId"])
+data class CachedFriendEntity(
+    val ownerId: String,
+    val userId: String,
+    val nickname: String,
+    val avatarEmoji: String,
+    val friendsSince: String,
+    val lastMessage: String?,
+    val lastMessageAt: String?,
+    val publicId: String,
+    val sparkCount: Int
+)
+
+/** 私聊消息缓存：每个会话保留云端最近 200 条。 */
+@Entity(
+    tableName = "cached_friend_messages",
+    primaryKeys = ["ownerId", "messageId"],
+    indices = [
+        Index(
+            name = "index_cached_friend_messages_owner_friend_time",
+            value = ["ownerId", "friendId", "createdAt"]
+        )
+    ]
+)
+data class CachedFriendMessageEntity(
+    val ownerId: String,
+    val messageId: Long,
+    val friendId: String,
+    val senderId: String,
+    val content: String,
+    val messageType: String,
+    val calories: Int?,
+    val entryDate: String?,
+    val itemsJson: String,
+    val createdAt: String
+)
+
+/** 群会话列表缓存。 */
+@Entity(tableName = "cached_groups", primaryKeys = ["ownerId", "groupId"])
+data class CachedGroupEntity(
+    val ownerId: String,
+    val groupId: String,
+    val name: String,
+    val groupOwnerId: String,
+    val calorieGoal: Int,
+    val createdAt: String,
+    val lastMessage: String?,
+    val lastMessageAt: String?,
+    val sparkDays: Int
+)
+
+/** 群聊消息缓存：每个群保留云端最近 200 条。 */
+@Entity(
+    tableName = "cached_group_messages",
+    primaryKeys = ["ownerId", "messageId"],
+    indices = [
+        Index(
+            name = "index_cached_group_messages_owner_group_time",
+            value = ["ownerId", "groupId", "createdAt"]
+        )
+    ]
+)
+data class CachedGroupMessageEntity(
+    val ownerId: String,
+    val messageId: Long,
+    val groupId: String,
+    val senderId: String,
+    val content: String,
+    val messageType: String,
+    val calories: Int?,
+    val entryDate: String?,
+    val itemsJson: String,
+    val createdAt: String
 )

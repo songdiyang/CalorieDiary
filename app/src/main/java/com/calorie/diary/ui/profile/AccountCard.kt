@@ -88,6 +88,8 @@ fun AccountCard(
     onLogin: () -> Unit = {}
 ) {
     val state by authVm.uiState.collectAsState()
+    val resetState by authVm.passwordResetState.collectAsState()
+    var showResetForm by remember { mutableStateOf(false) }
     val accentColor = Orange
     val accentDarkColor = OrangeDeep
 
@@ -156,6 +158,21 @@ fun AccountCard(
                 },
                 onLogin = onLogin
             )
+            showResetForm -> ResetPasswordForm(
+                busy = resetState.busy,
+                sendingCode = resetState.sendingCode,
+                codeSentCount = resetState.codeSentCount,
+                onSendCode = { email ->
+                    withPrivacyConsent { authVm.sendPasswordResetCode(email) }
+                },
+                onReset = { email, code, password ->
+                    authVm.resetPassword(email, code, password) { showResetForm = false }
+                },
+                onBackToLogin = {
+                    showResetForm = false
+                    authVm.clearPasswordResetState()
+                }
+            )
             state.account != null && !forceAddAccount -> SoftCard(
                 modifier = Modifier.fillMaxWidth(),
                 fill = CardWhite
@@ -167,7 +184,11 @@ fun AccountCard(
                 onSignIn = { email, password ->
                     withPrivacyConsent { authVm.signIn(email, password) }
                 },
-                onRegister = onRegister
+                onRegister = onRegister,
+                onForgotPassword = {
+                    authVm.clearPasswordResetState()
+                    showResetForm = true
+                }
             )
         }
 
@@ -217,7 +238,8 @@ fun AccountCard(
 private fun LoginForm(
     busy: Boolean,
     onSignIn: (String, String) -> Unit,
-    onRegister: () -> Unit
+    onRegister: () -> Unit,
+    onForgotPassword: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -241,7 +263,24 @@ private fun LoginForm(
             visualTransformation = PasswordVisualTransformation(),
             enabled = !busy
         )
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(R.string.auth_forgot_password),
+            fontFamily = CuteFont,
+            fontSize = 13.sp,
+            color = OrangeDeep.copy(alpha = if (busy) 0.45f else 1f),
+            textAlign = TextAlign.End,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    enabled = !busy,
+                    onClick = onForgotPassword
+                )
+                .padding(horizontal = 4.dp, vertical = 6.dp)
+        )
+        Spacer(Modifier.height(20.dp))
         AuthPrimaryButton(
             text = stringResource(R.string.auth_sign_in),
             onClick = { onSignIn(email, password) },
@@ -428,6 +467,147 @@ private fun RegisterForm(
     }
 }
 
+/** 找回密码：邮箱验证码验证身份后设置新密码。 */
+@Composable
+private fun ResetPasswordForm(
+    busy: Boolean,
+    sendingCode: Boolean,
+    codeSentCount: Int,
+    onSendCode: (String) -> Unit,
+    onReset: (String, String, String) -> Unit,
+    onBackToLogin: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var mismatch by remember { mutableStateOf(false) }
+    var resendSeconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(codeSentCount) {
+        if (codeSentCount > 0) resendSeconds = 60
+    }
+    LaunchedEffect(resendSeconds) {
+        if (resendSeconds > 0) {
+            delay(1000L)
+            resendSeconds -= 1
+        }
+    }
+
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.auth_reset_title),
+            fontFamily = CuteFont,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            color = Ink
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(R.string.auth_reset_subtitle),
+            fontFamily = CuteFont,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            color = InkLight
+        )
+        Spacer(Modifier.height(16.dp))
+        AccountTextField(
+            value = email,
+            onValueChange = { email = it },
+            placeholder = stringResource(R.string.auth_email_label),
+            keyboardType = KeyboardType.Email,
+            imeAction = ImeAction.Next,
+            enabled = !busy
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(verticalAlignment = Alignment.Top) {
+            AccountTextField(
+                value = code,
+                onValueChange = { code = it.filter(Char::isDigit).take(10) },
+                placeholder = stringResource(R.string.auth_otp_placeholder),
+                supportingText = stringResource(R.string.auth_otp_hint),
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next,
+                enabled = !busy,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = when {
+                    sendingCode -> stringResource(R.string.auth_otp_sending)
+                    resendSeconds > 0 -> stringResource(R.string.auth_otp_resend, resendSeconds)
+                    else -> stringResource(R.string.auth_otp_send)
+                },
+                fontFamily = CuteFont,
+                fontSize = 13.sp,
+                color = if (busy || sendingCode || resendSeconds > 0) {
+                    InkLight.copy(alpha = 0.55f)
+                } else {
+                    OrangeDeep
+                },
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !busy && !sendingCode && resendSeconds == 0,
+                        onClick = { onSendCode(email) }
+                    )
+                    .padding(horizontal = 6.dp, vertical = 16.dp)
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        AccountTextField(
+            value = password,
+            onValueChange = {
+                password = it
+                mismatch = false
+            },
+            placeholder = stringResource(R.string.auth_password_label),
+            supportingText = stringResource(R.string.auth_password_hint),
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Next,
+            visualTransformation = PasswordVisualTransformation(),
+            enabled = !busy
+        )
+        Spacer(Modifier.height(14.dp))
+        AccountTextField(
+            value = confirmPassword,
+            onValueChange = {
+                confirmPassword = it
+                mismatch = false
+            },
+            placeholder = stringResource(R.string.auth_confirm_password_label),
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done,
+            visualTransformation = PasswordVisualTransformation(),
+            enabled = !busy
+        )
+        if (mismatch) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.auth_password_mismatch),
+                fontFamily = CuteFont,
+                fontSize = 12.sp,
+                color = Danger,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+        Spacer(Modifier.height(26.dp))
+        AuthPrimaryButton(
+            text = stringResource(R.string.auth_reset_action),
+            onClick = {
+                if (password != confirmPassword) {
+                    mismatch = true
+                } else {
+                    onReset(email, code, password)
+                }
+            },
+            enabled = !busy,
+            loading = busy
+        )
+        AuthPageLink(stringResource(R.string.auth_have_account), onBackToLogin, !busy)
+    }
+}
+
 @Composable
 private fun AuthPrimaryButton(
     text: String,
@@ -570,7 +750,7 @@ internal fun LoggedInAccount(
 }
 
 @Composable
-private fun AccountTextField(
+internal fun AccountTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,

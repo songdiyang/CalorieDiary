@@ -223,3 +223,94 @@ data class MemberTotal(
     val ownerName: String,
     val memberTotal: Int
 )
+
+/** 消息与会话的本地缓存，全部按登录账号隔离。 */
+@Dao
+abstract class ChatCacheDao {
+
+    @Query(
+        "SELECT * FROM cached_friends WHERE ownerId = :ownerId " +
+            "ORDER BY COALESCE(lastMessageAt, friendsSince) DESC"
+    )
+    abstract suspend fun friends(ownerId: String): List<CachedFriendEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertFriends(friends: List<CachedFriendEntity>)
+
+    @Query("DELETE FROM cached_friends WHERE ownerId = :ownerId")
+    abstract suspend fun clearFriends(ownerId: String)
+
+    @Query("DELETE FROM cached_friends WHERE ownerId = :ownerId AND userId = :userId")
+    abstract suspend fun deleteFriend(ownerId: String, userId: String)
+
+    @Transaction
+    open suspend fun replaceFriends(ownerId: String, friends: List<CachedFriendEntity>) {
+        clearFriends(ownerId)
+        if (friends.isNotEmpty()) insertFriends(friends)
+    }
+
+    @Query(
+        "SELECT * FROM cached_friend_messages WHERE ownerId = :ownerId AND friendId = :friendId " +
+            "ORDER BY createdAt ASC, messageId ASC"
+    )
+    abstract suspend fun friendMessages(ownerId: String, friendId: String): List<CachedFriendMessageEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertFriendMessages(messages: List<CachedFriendMessageEntity>)
+
+    @Query("DELETE FROM cached_friend_messages WHERE ownerId = :ownerId AND friendId = :friendId")
+    abstract suspend fun clearFriendMessages(ownerId: String, friendId: String)
+
+    @Transaction
+    open suspend fun replaceFriendMessages(
+        ownerId: String,
+        friendId: String,
+        messages: List<CachedFriendMessageEntity>
+    ) {
+        clearFriendMessages(ownerId, friendId)
+        if (messages.isNotEmpty()) insertFriendMessages(messages)
+    }
+
+    @Query(
+        "SELECT * FROM cached_groups WHERE ownerId = :ownerId " +
+            "ORDER BY COALESCE(lastMessageAt, createdAt) DESC"
+    )
+    abstract suspend fun groups(ownerId: String): List<CachedGroupEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertGroups(groups: List<CachedGroupEntity>)
+
+    @Query("DELETE FROM cached_groups WHERE ownerId = :ownerId")
+    abstract suspend fun clearGroups(ownerId: String)
+
+    @Query("DELETE FROM cached_groups WHERE ownerId = :ownerId AND groupId = :groupId")
+    abstract suspend fun deleteGroup(ownerId: String, groupId: String)
+
+    @Transaction
+    open suspend fun replaceGroups(ownerId: String, groups: List<CachedGroupEntity>) {
+        clearGroups(ownerId)
+        if (groups.isNotEmpty()) insertGroups(groups)
+    }
+
+    @Query(
+        "SELECT * FROM cached_group_messages WHERE ownerId = :ownerId AND groupId = :groupId " +
+            "ORDER BY createdAt ASC, messageId ASC"
+    )
+    abstract suspend fun groupMessages(ownerId: String, groupId: String): List<CachedGroupMessageEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertGroupMessages(messages: List<CachedGroupMessageEntity>)
+
+    @Query("DELETE FROM cached_group_messages WHERE ownerId = :ownerId AND groupId = :groupId")
+    abstract suspend fun clearGroupMessages(ownerId: String, groupId: String)
+
+    @Transaction
+    open suspend fun replaceGroupMessages(
+        ownerId: String,
+        groupId: String,
+        messages: List<CachedGroupMessageEntity>
+    ) {
+        clearGroupMessages(ownerId, groupId)
+        if (messages.isNotEmpty()) insertGroupMessages(messages)
+    }
+}

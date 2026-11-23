@@ -528,7 +528,7 @@ private fun ErrorCard(kind: VisionErrorKind, onRetry: () -> Unit) {
 /** 彩蛋物品（核弹、燃气罐、汽油…）：只做趣味展示，绝不写入饮食记录。 */
 @Composable
 private fun EasterEggCard(name: String, onRetake: () -> Unit, onDismiss: () -> Unit) {
-    val (emoji, labelRes) = easterEggLook(name)
+    val (iconRes, labelRes) = easterEggLook(name)
     val transition = rememberInfiniteTransition(label = "easterEgg")
     val pulse by transition.animateFloat(
         initialValue = 1f,
@@ -551,14 +551,16 @@ private fun EasterEggCard(name: String, onRetake: () -> Unit, onDismiss: () -> U
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                emoji,
-                fontSize = 64.sp,
-                modifier = Modifier.graphicsLayer {
-                    scaleX = pulse
-                    scaleY = pulse
-                    rotationZ = tilt
-                }
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(84.dp)
+                    .graphicsLayer {
+                        scaleX = pulse
+                        scaleY = pulse
+                        rotationZ = tilt
+                    }
             )
             Spacer(Modifier.height(6.dp))
             Text(
@@ -608,16 +610,16 @@ private fun EasterEggCard(name: String, onRetake: () -> Unit, onDismiss: () -> U
     }
 }
 
-/** 根据模型返回的物品名匹配本地化名称与图标（模型名称可能是核弹/导弹、煤气罐等等）。 */
-private fun easterEggLook(name: String): Pair<String, Int> = when {
+/** 根据模型返回的物品名匹配本地化名称与手绘贴纸图标（模型名称可能是核弹/导弹、煤气罐等等）。 */
+private fun easterEggLook(name: String): Pair<Int, Int> = when {
     listOf("核", "导弹", "nuke", "bomb").any { name.contains(it, ignoreCase = true) } ->
-        "☢️" to R.string.rec_easter_nuke
+        R.drawable.icon_easter_nuke to R.string.rec_easter_nuke
     listOf("燃气", "煤气", "液化气", "gas").any { name.contains(it, ignoreCase = true) } ->
-        "🔥" to R.string.rec_easter_gas
+        R.drawable.icon_easter_gas to R.string.rec_easter_gas
     listOf("汽油", "燃油", "油桶", "gasoline", "petrol", "fuel")
         .any { name.contains(it, ignoreCase = true) } ->
-        "⛽" to R.string.rec_easter_fuel
-    else -> "⚠️" to R.string.rec_easter_unknown
+        R.drawable.icon_easter_fuel to R.string.rec_easter_fuel
+    else -> R.drawable.icon_easter_warning to R.string.rec_easter_unknown
 }
 
 @Composable

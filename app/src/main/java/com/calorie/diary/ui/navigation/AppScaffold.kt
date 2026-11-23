@@ -65,6 +65,7 @@ import com.calorie.diary.ui.account.RegisterScreen
 import com.calorie.diary.ui.bmi.BmiScreen
 import com.calorie.diary.ui.calendar.CalendarScreen
 import com.calorie.diary.ui.components.AppToastHost
+import com.calorie.diary.ui.components.CheckInSuccessDialog
 import com.calorie.diary.ui.components.OfflineBanner
 import com.calorie.diary.ui.exercise.ExerciseScreen
 import com.calorie.diary.ui.fasting.FastingScreen
@@ -116,6 +117,7 @@ fun AppScaffold() {
     }
     val vm = appVm()
     val uiMessage by vm.uiMessage.collectAsState()
+    val checkInReward by vm.checkInReward.collectAsState()
 
     // 相机直拍：在导航层注册，点击中间按钮直接调起系统相机
     val context = LocalContext.current
@@ -478,6 +480,11 @@ fun AppScaffold() {
                 }
             )
         }
+    }
+
+    // 每日签到成功：居中弹窗，必须点击“开心收下”才能关闭。
+    checkInReward?.let { reward ->
+        CheckInSuccessDialog(reward = reward, onConfirm = vm::dismissCheckInReward)
     }
 }
 

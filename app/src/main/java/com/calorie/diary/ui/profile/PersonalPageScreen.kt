@@ -2,6 +2,7 @@ package com.calorie.diary.ui.profile
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,6 +49,7 @@ import com.calorie.diary.data.DateUtils
 import com.calorie.diary.data.supabase.ActivityDay
 import com.calorie.diary.data.supabase.ActivityProfile
 import com.calorie.diary.data.supabase.DefaultAvatarCatalog
+import com.calorie.diary.data.supabase.PublicProfile
 import com.calorie.diary.data.supabase.SocialSummary
 import com.calorie.diary.data.supabase.SupabaseAuthRepository
 import com.calorie.diary.ui.components.AvatarPickerDialog
@@ -53,6 +57,7 @@ import com.calorie.diary.ui.components.CuteButton
 import com.calorie.diary.ui.components.DefaultAvatar
 import com.calorie.diary.ui.components.NicknameEditDialog
 import com.calorie.diary.ui.components.SoftCard
+import com.calorie.diary.ui.components.uidCopyGestures
 import com.calorie.diary.ui.home.appVm
 import com.calorie.diary.ui.navigation.Routes
 import com.calorie.diary.ui.theme.CardWhite
@@ -106,6 +111,8 @@ fun PersonalPageScreen(
         onBack = onBack,
         onLogin = onLogin,
         onOpenSocialList = onOpenSocialList,
+        onFollow = { vm.follow(it) },
+        onApplyFriend = { vm.applyFriend(it) },
         selfAvatarUserId = selfAvatarUserId,
         selfAvatarId = selfAvatarId,
         onAvatarClick = { showAvatarPicker = true },
@@ -154,6 +161,8 @@ internal fun PersonalPageContent(
     onBack: () -> Unit,
     onLogin: () -> Unit,
     onOpenSocialList: (String) -> Unit = {},
+    onFollow: (String) -> Unit = {},
+    onApplyFriend: (String) -> Unit = {},
     selfAvatarUserId: String = "",
     selfAvatarId: String? = null,
     onAvatarClick: () -> Unit = {},
@@ -197,7 +206,12 @@ internal fun PersonalPageContent(
                 state.status == "not_found" ->
                     CenterMessage(stringResource(R.string.social_user_not_found))
                 state.publicProfile != null ->
-                    PublicProfileContent(state, onOpenSocialList)
+                    PublicProfileContent(
+                        state = state,
+                        onOpenSocialList = onOpenSocialList,
+                        onFollow = onFollow,
+                        onApplyFriend = onApplyFriend
+                    )
                 state.status != "ok" -> CenterMessage(stringResource(R.string.activity_error))
             }
             state.status == "private" -> CenterMessage(stringResource(R.string.activity_private_title))
@@ -245,8 +259,15 @@ private fun ActivityContent(
 
 /** 他人主页：只展示公开资料与关注/粉丝/互关，不展示任何饮食数据。 */
 @Composable
-private fun PublicProfileContent(state: PersonalPageUiState, onOpenSocialList: (String) -> Unit) {
+private fun PublicProfileContent(
+    state: PersonalPageUiState,
+    onOpenSocialList: (String) -> Unit,
+    onFollow: (String) -> Unit,
+    onApplyFriend: (String) -> Unit
+) {
     val profile = state.publicProfile ?: return
+    val clipboard = LocalClipboardManager.current
+    val uidCopiedHint = stringResource(R.string.profile_id_copied)
     Column(
         Modifier
             .fillMaxSize()
@@ -285,21 +306,40 @@ private fun PublicProfileContent(state: PersonalPageUiState, onOpenSocialList: (
                         Spacer(Modifier.height(3.dp))
                         Text(
                             stringResource(R.string.profile_user_id, profile.publicId),
-                            fontFamily = CuteFont, fontSize = 11.sp, color = InkLight
+                            fontFamily = CuteFont, fontSize = 11.sp, color = InkLight,
+                            modifier = Modifier.uidCopyGestures(
+                                uid = profile.publicId,
+                                clipboardManager = clipboard,
+                                copiedHint = uidCopiedHint
+                            )
                         )
                     }
                     Spacer(Modifier.height(7.dp))
                     Text(
                         stringResource(
-                            if (profile.isFriend) R.string.social_list_mutual
-                            else R.string.social_not_friend
+                            when {
+                                profile.isFriend || profile.isMutual -> R.string.social_list_mutual
+                                profile.isFollowing -> R.string.social_list_following_state
+                                else -> R.string.social_not_friend
+                            }
                         ),
                         fontFamily = CuteFont, fontSize = 10.sp, color = InkLight,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(if (profile.isFriend) MintSoft else LavenderSoft)
+                            .background(
+                                if (profile.isFriend || profile.isMutual) MintSoft else LavenderSoft
+                            )
                             .padding(horizontal = 9.dp, vertical = 3.dp)
                     )
+                    if (!profile.isSelf) {
+                        Spacer(Modifier.height(8.dp))
+                        PublicRelationAction(
+                            profile = profile,
+                            busy = state.friendActionBusy,
+                            onFollow = { onFollow(profile.userId) },
+                            onApplyFriend = { onApplyFriend(profile.userId) }
+                        )
+                    }
                 }
             }
         }
@@ -327,6 +367,74 @@ private fun PublicProfileContent(state: PersonalPageUiState, onOpenSocialList: (
     }
 }
 
+/** 他人主页的关系操作：关注/回关 → 互关后才能申请好友，好友不再展示按钮。 */
+@Composable
+private fun PublicRelationAction(
+    profile: PublicProfile,
+    busy: Boolean,
+    onFollow: () -> Unit,
+    onApplyFriend: () -> Unit
+) {
+    val labelRes: Int
+    val primary: Boolean
+    val action: (() -> Unit)?
+    when {
+        profile.isFriend -> return
+        profile.hasSentFriendRequest -> {
+            labelRes = R.string.friends_request_pending
+            primary = false
+            action = null
+        }
+        profile.hasIncomingFriendRequest -> {
+            labelRes = R.string.friends_request_incoming
+            primary = false
+            action = null
+        }
+        profile.isMutual -> {
+            labelRes = R.string.friends_apply_action
+            primary = true
+            action = onApplyFriend
+        }
+        profile.isFollowing -> {
+            labelRes = R.string.friends_following_state
+            primary = false
+            action = null
+        }
+        profile.isFollowedBy -> {
+            labelRes = R.string.friends_follow_back
+            primary = true
+            action = onFollow
+        }
+        else -> {
+            labelRes = R.string.friends_follow_action
+            primary = true
+            action = onFollow
+        }
+    }
+
+    val shape = RoundedCornerShape(50)
+    Box(
+        Modifier
+            .clip(shape)
+            .background(if (primary) OrangeDeep else CardWhite)
+            .border(1.dp, if (primary) OrangeDeep else Hairline, shape)
+            .clickable(
+                enabled = action != null && !busy,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { action?.invoke() }
+            )
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            stringResource(labelRes),
+            fontFamily = CuteFont,
+            fontSize = 12.sp,
+            color = if (primary) Color.White else InkLight
+        )
+    }
+}
+
 @Composable
 private fun ActivityHero(
     profile: ActivityProfile,
@@ -336,6 +444,8 @@ private fun ActivityHero(
     onAvatarClick: () -> Unit,
     onNicknameClick: () -> Unit
 ) {
+    val clipboard = LocalClipboardManager.current
+    val uidCopiedHint = stringResource(R.string.profile_id_copied)
     SoftCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -393,7 +503,12 @@ private fun ActivityHero(
                     if (profile.publicId.isNotBlank()) {
                         Text(
                             stringResource(R.string.profile_user_id, profile.publicId),
-                            fontFamily = CuteFont, fontSize = 11.sp, color = InkLight
+                            fontFamily = CuteFont, fontSize = 11.sp, color = InkLight,
+                            modifier = Modifier.uidCopyGestures(
+                                uid = profile.publicId,
+                                clipboardManager = clipboard,
+                                copiedHint = uidCopiedHint
+                            )
                         )
                         Spacer(Modifier.width(8.dp))
                     }

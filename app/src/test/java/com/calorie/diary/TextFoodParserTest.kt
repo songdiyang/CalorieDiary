@@ -94,7 +94,7 @@ class TextFoodParserTest {
         Assert.assertEquals(-1, r.dateOffset)
         Assert.assertEquals(Integer.valueOf(1), r.mealFromText)
         Assert.assertEquals(1, r.addItems.size)
-        Assert.assertEquals("面条", r.addItems[0].food.name)
+        Assert.assertEquals("牛肉面", r.addItems[0].food.name)
         Assert.assertEquals(0, r.unmatched.size)
     }
 

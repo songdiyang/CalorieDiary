@@ -18,6 +18,7 @@ import com.calorie.diary.data.db.MemberTotal
 import com.calorie.diary.data.db.UserIdentity
 import com.calorie.diary.data.db.UserProfile
 import com.calorie.diary.data.db.WaterEntity
+import com.calorie.diary.data.game.CheckInReward
 import com.calorie.diary.data.game.DAILY_PHOTO_TASK_EXP
 import com.calorie.diary.data.game.GameInventoryItem
 import com.calorie.diary.data.game.NewbieTaskState
@@ -309,6 +310,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 自动签到进行中的去重标记：多个页面同时刷新时不重复请求。 */
     private var autoCheckInRunning = false
 
+    private val _checkInReward = MutableStateFlow<CheckInReward?>(null)
+
+    /** 当日签到成功的奖励；非空时全局弹窗展示，必须由用户确认关闭。 */
+    val checkInReward: StateFlow<CheckInReward?> = _checkInReward.asStateFlow()
+
+    fun dismissCheckInReward() {
+        _checkInReward.value = null
+    }
+
     private fun autoDailyCheckIn() {
         if (autoCheckInRunning) return
         autoCheckInRunning = true
@@ -316,17 +326,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val reward = gameRepo.claimDailyCheckIn()
                 if (reward.success) {
-                    showMessage(
-                        if (reward.doubled) {
-                            str(
-                                R.string.checkin_success_doubled,
-                                reward.streak, reward.coins, reward.exp
-                            )
-                        } else {
-                            str(R.string.checkin_success_exp, reward.coins, reward.exp)
-                        },
-                        false
-                    )
+                    // 签到成功不再一闪而过的轻提示，改为需要用户确认的居中弹窗。
+                    _checkInReward.value = reward
                     refreshGameState()
                 }
             } catch (e: CancellationException) {

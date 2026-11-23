@@ -14,9 +14,11 @@ import kotlinx.coroutines.launch
 @Database(
     entities = [
         FoodEntity::class, MealEntryEntity::class, WaterEntity::class,
-        GroupEntity::class, GroupMemberEntity::class, MealTombstoneEntity::class
+        GroupEntity::class, GroupMemberEntity::class, MealTombstoneEntity::class,
+        CachedFriendEntity::class, CachedFriendMessageEntity::class,
+        CachedGroupEntity::class, CachedGroupMessageEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun waterDao(): WaterDao
     abstract fun groupDao(): GroupDao
     abstract fun mealTombstoneDao(): MealTombstoneDao
+    abstract fun chatCacheDao(): ChatCacheDao
 
     companion object {
         @Volatile
@@ -104,6 +107,47 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cached_friends` (" +
+                        "`ownerId` TEXT NOT NULL, `userId` TEXT NOT NULL, `nickname` TEXT NOT NULL, " +
+                        "`avatarEmoji` TEXT NOT NULL, `friendsSince` TEXT NOT NULL, " +
+                        "`lastMessage` TEXT, `lastMessageAt` TEXT, `publicId` TEXT NOT NULL, " +
+                        "`sparkCount` INTEGER NOT NULL, PRIMARY KEY(`ownerId`, `userId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cached_friend_messages` (" +
+                        "`ownerId` TEXT NOT NULL, `messageId` INTEGER NOT NULL, `friendId` TEXT NOT NULL, " +
+                        "`senderId` TEXT NOT NULL, `content` TEXT NOT NULL, `messageType` TEXT NOT NULL, " +
+                        "`calories` INTEGER, `entryDate` TEXT, `itemsJson` TEXT NOT NULL, " +
+                        "`createdAt` TEXT NOT NULL, PRIMARY KEY(`ownerId`, `messageId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_cached_friend_messages_owner_friend_time` " +
+                        "ON `cached_friend_messages` (`ownerId`, `friendId`, `createdAt`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cached_groups` (" +
+                        "`ownerId` TEXT NOT NULL, `groupId` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                        "`groupOwnerId` TEXT NOT NULL, `calorieGoal` INTEGER NOT NULL, " +
+                        "`createdAt` TEXT NOT NULL, `lastMessage` TEXT, `lastMessageAt` TEXT, " +
+                        "`sparkDays` INTEGER NOT NULL, PRIMARY KEY(`ownerId`, `groupId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cached_group_messages` (" +
+                        "`ownerId` TEXT NOT NULL, `messageId` INTEGER NOT NULL, `groupId` TEXT NOT NULL, " +
+                        "`senderId` TEXT NOT NULL, `content` TEXT NOT NULL, `messageType` TEXT NOT NULL, " +
+                        "`calories` INTEGER, `entryDate` TEXT, `itemsJson` TEXT NOT NULL, " +
+                        "`createdAt` TEXT NOT NULL, PRIMARY KEY(`ownerId`, `messageId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_cached_group_messages_owner_group_time` " +
+                        "ON `cached_group_messages` (`ownerId`, `groupId`, `createdAt`)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -111,7 +155,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "calorie_diary.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                    )
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

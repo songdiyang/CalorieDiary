@@ -35,6 +35,16 @@ class SupabaseAuthRepository private constructor(context: Context) {
 
     suspend fun sendDeletionCode(email: String) = api.sendEmailOtp(email, createUser = false)
 
+    /** 找回密码：向已注册邮箱发送验证码，用于证明邮箱归属。 */
+    suspend fun sendPasswordResetCode(email: String) = api.sendEmailOtp(email, createUser = false)
+
+    /** 验证码校验通过后直接设置新密码；临时会话不落盘，用户需用新密码重新登录。 */
+    suspend fun resetPassword(email: String, code: String, newPassword: String) {
+        val session = api.verifyEmailOtp(email, code)
+        api.setPassword(session, newPassword)
+        runCatching { api.logout(session) }
+    }
+
     /** 验证码注册：先验证邮箱归属，再设置初始密码并保存会话。 */
     suspend fun register(email: String, password: String, code: String): SupabaseSession {
         val session = api.verifyEmailOtp(email, code)

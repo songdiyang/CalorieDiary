@@ -87,6 +87,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.calorie.diary.R
 import com.calorie.diary.data.AppRefreshBus
 import com.calorie.diary.data.supabase.ConversationSettings
+import com.calorie.diary.data.supabase.FollowNoticeEntry
 import com.calorie.diary.data.supabase.FriendEntry
 import com.calorie.diary.data.supabase.FriendRequestEntry
 import com.calorie.diary.data.supabase.GroupInvitation
@@ -174,6 +175,8 @@ fun FriendsScreen(
         onOpenProfile = onOpenProfile,
         onOpenSearch = onOpenSearch,
         onLogin = onLogin,
+        onFollow = vm::follow,
+        onApplyFriend = vm::applyFriend,
         onAcceptRequest = vm::acceptRequest,
         onDeclineRequest = vm::declineRequest,
         onCreateGroup = groupsVm::createGroup,
@@ -196,6 +199,8 @@ private fun FriendsContent(
     onOpenProfile: (String) -> Unit,
     onOpenSearch: () -> Unit,
     onLogin: () -> Unit,
+    onFollow: (String) -> Unit,
+    onApplyFriend: (String) -> Unit,
     onAcceptRequest: (String) -> Unit,
     onDeclineRequest: (String) -> Unit,
     onCreateGroup: (String, List<String>) -> Unit,
@@ -298,6 +303,24 @@ private fun FriendsContent(
                             state = recentFriendsScroll,
                             modifier = Modifier.background(ScreenBg)
                         )
+                    }
+                    if (state.followNotices.isNotEmpty()) {
+                        item(key = "follow_notices_header") {
+                            FollowNoticesHeader(state.followNotices.size)
+                        }
+                        items(
+                            state.followNotices,
+                            key = { "follow_notice_${it.userId}" }
+                        ) { notice ->
+                            FollowNoticeRow(
+                                notice = notice,
+                                enabled = !state.busy,
+                                applied = notice.userId in state.sentRequestIds,
+                                onOpenProfile = { onOpenProfile(notice.userId) },
+                                onFollowBack = { onFollow(notice.userId) },
+                                onApplyFriend = { onApplyFriend(notice.userId) }
+                            )
+                        }
                     }
                     if (state.requests.isNotEmpty()) {
                         item(key = "friend_requests_header") {
@@ -579,6 +602,118 @@ private fun RecentFriendsRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FollowNoticesHeader(count: Int) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(CardWhite)
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            stringResource(R.string.friends_follow_section),
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.Medium,
+            fontSize = 13.sp,
+            color = InkLight
+        )
+        Spacer(Modifier.width(6.dp))
+        Box(
+            Modifier
+                .clip(CircleShape)
+                .background(OrangeDeep)
+                .padding(horizontal = 7.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                count.toString(),
+                fontFamily = FontFamily.SansSerif,
+                fontSize = 11.sp,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun FollowNoticeRow(
+    notice: FollowNoticeEntry,
+    enabled: Boolean,
+    applied: Boolean,
+    onOpenProfile: () -> Unit,
+    onFollowBack: () -> Unit,
+    onApplyFriend: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(CardWhite)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(48.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onOpenProfile
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            UserAvatar(
+                userId = notice.userId,
+                avatarEmoji = notice.avatarEmoji,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(
+            Modifier
+                .weight(1f)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onOpenProfile
+                )
+        ) {
+            Text(
+                notice.nickname,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp,
+                color = Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                stringResource(
+                    if (notice.mutual) R.string.friends_mutual_hint
+                    else R.string.friends_followed_you
+                ),
+                fontFamily = FontFamily.SansSerif,
+                fontSize = 12.sp,
+                color = InkLight
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        RequestActionButton(
+            text = stringResource(
+                when {
+                    applied -> R.string.friends_request_pending
+                    notice.mutual -> R.string.friends_apply_action
+                    else -> R.string.friends_follow_back
+                }
+            ),
+            primary = !applied,
+            enabled = enabled && !applied,
+            onClick = if (notice.mutual) onApplyFriend else onFollowBack
+        )
     }
 }
 
@@ -1441,6 +1576,8 @@ internal fun FriendsPreviewContent() {
         onOpenProfile = {},
         onOpenSearch = {},
         onLogin = {},
+        onFollow = {},
+        onApplyFriend = {},
         onAcceptRequest = {},
         onDeclineRequest = {},
         onCreateGroup = { _, _ -> },

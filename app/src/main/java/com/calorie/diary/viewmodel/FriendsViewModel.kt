@@ -11,6 +11,7 @@ import com.calorie.diary.data.supabase.CloudGameRepository
 import com.calorie.diary.data.supabase.ConversationPreferencesStore
 import com.calorie.diary.data.supabase.ConversationSettings
 import com.calorie.diary.data.supabase.FriendAddStatus
+import com.calorie.diary.data.supabase.FollowNoticeEntry
 import com.calorie.diary.data.supabase.FriendEntry
 import com.calorie.diary.data.supabase.FriendRequestEntry
 import com.calorie.diary.data.supabase.FriendsRepository
@@ -39,7 +40,12 @@ data class FriendsUiState(
     val requiresLogin: Boolean = false,
     val myUserId: String = "",
     val friends: List<FriendEntry> = emptyList(),
+    /** 单向关注我的粉丝：消息页提示“xxx 关注了你”，可直接回关。 */
+    val followNotices: List<FollowNoticeEntry> = emptyList(),
+    /** 好友申请：仅在双方互相关注后才能发出。 */
     val requests: List<FriendRequestEntry> = emptyList(),
+    /** 本次会话中已发出好友申请的用户，用于把按钮置为“已申请”。 */
+    val sentRequestIds: Set<String> = emptySet(),
     val searching: Boolean = false,
     val searchResults: List<UserSearchResult> = emptyList(),
     @StringRes val messageRes: Int? = null,
@@ -77,7 +83,9 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                     requiresLogin = true,
                     myUserId = "",
                     friends = emptyList(),
+                    followNotices = emptyList(),
                     requests = emptyList(),
+                    sentRequestIds = emptySet(),
                     messageRes = null
                 )
             }
@@ -88,7 +96,9 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                     requiresLogin = false,
                     myUserId = "",
                     friends = emptyList(),
-                    requests = emptyList()
+                    followNotices = emptyList(),
+                    requests = emptyList(),
+                    sentRequestIds = emptySet()
                 )
             }
             refresh()
@@ -119,7 +129,8 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addFriend(userId: String): Boolean {
+    /** 好友申请：服务端要求双方已互相关注，否则返回 follow_required。 */
+    fun applyFriend(userId: String): Boolean {
         if (_uiState.value.busy) {
             showMessage(R.string.friends_busy, true)
             return false
@@ -136,24 +147,84 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         runOperation {
-            val result = repo.addFriend(id)
+            val result = repo.applyFriend(id)
             when (result.status) {
                 FriendAddStatus.NOT_FOUND -> showMessage(R.string.friends_not_found, true)
                 FriendAddStatus.ALREADY_FRIENDS -> {
+                    updateSearchResult(id) { it.copy(isFriend = true) }
                     showMessage(R.string.friends_already, false)
                     syncFriendNewbieTask()
                 }
+                FriendAddStatus.FOLLOW_REQUIRED ->
+                    showMessage(R.string.friends_follow_required, true)
                 FriendAddStatus.REQUEST_SENT -> {
+                    updateSearchResult(id) { it.copy(hasSentFriendRequest = true) }
+                    _uiState.update { it.copy(sentRequestIds = it.sentRequestIds + id) }
                     showMessage(R.string.friends_request_sent, false)
                 }
                 else -> {
                     loadOverview()
+                    updateSearchResult(id) {
+                        it.copy(
+                            isFriend = true,
+                            hasSentFriendRequest = false,
+                            hasIncomingFriendRequest = false
+                        )
+                    }
                     showMessage(R.string.friends_added, false)
                     syncFriendNewbieTask()
                 }
             }
         }
         return true
+    }
+
+    /** 关注用户：对方会在消息页看到“xxx 关注了你”，互关后才能申请好友。 */
+    fun follow(userId: String): Boolean {
+        if (_uiState.value.busy) {
+            showMessage(R.string.friends_busy, true)
+            return false
+        }
+        val id = userId.trim()
+        when {
+            !UserIdValidator.isValid(id) -> {
+                showMessage(R.string.friends_id_invalid, true)
+                return false
+            }
+            id.equals(_uiState.value.myUserId, ignoreCase = true) -> {
+                showMessage(R.string.friends_add_self, true)
+                return false
+            }
+        }
+        runOperation {
+            when (repo.follow(id)) {
+                "mutual" -> {
+                    updateSearchResult(id) { it.copy(isFollowing = true, isFollowedBy = true) }
+                    showMessage(R.string.friends_follow_mutual, false)
+                }
+                "following" -> {
+                    updateSearchResult(id) { it.copy(isFollowing = true) }
+                    showMessage(R.string.friends_followed, false)
+                }
+                "not_found" -> showMessage(R.string.friends_not_found, true)
+                "self" -> showMessage(R.string.friends_add_self, true)
+                else -> showMessage(R.string.error_generic, true)
+            }
+        }
+        return true
+    }
+
+    private fun updateSearchResult(
+        userId: String,
+        transform: (UserSearchResult) -> UserSearchResult
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                searchResults = state.searchResults.map { result ->
+                    if (result.userId == userId) transform(result) else result
+                }
+            )
+        }
     }
 
     fun acceptRequest(requesterId: String) = respondRequest(requesterId, true)
@@ -171,6 +242,10 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
             "declined" -> {
                 loadOverview()
                 showMessage(R.string.friends_request_declined, false)
+            }
+            "not_mutual" -> {
+                loadOverview()
+                showMessage(R.string.friends_follow_required, true)
             }
             else -> loadOverview()
         }
@@ -195,6 +270,15 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun loadOverview() {
+        // 先用本地缓存把会话列表显示出来，再后台拉取最新数据。
+        if (_uiState.value.friends.isEmpty()) {
+            val cached = runCatching { repo.loadCachedFriends() }.getOrDefault(emptyList())
+            if (cached.isNotEmpty()) {
+                _uiState.update {
+                    it.copy(requiresLogin = false, friends = cached, loading = false)
+                }
+            }
+        }
         val overview = repo.loadOverview()
         currentUserId.value = overview.myUserId
         _uiState.update {
@@ -202,6 +286,7 @@ class FriendsViewModel(app: Application) : AndroidViewModel(app) {
                 requiresLogin = false,
                 myUserId = overview.myUserId,
                 friends = overview.friends,
+                followNotices = overview.followNotices,
                 requests = overview.requests
             )
         }

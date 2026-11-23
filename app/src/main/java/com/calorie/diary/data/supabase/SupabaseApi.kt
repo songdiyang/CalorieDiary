@@ -338,6 +338,22 @@ class SupabaseApi(
             )
         )
 
+    /** 关注某人：返回 following（单方面关注）或 mutual（对方也已关注我）。 */
+    suspend fun followUser(session: SupabaseSession, userId: String): String {
+        val response = post(
+            "/rest/v1/rpc/follow_user",
+            JSONObject().put("p_user_id", userId),
+            session.accessToken
+        ).trim()
+        return runCatching {
+            when {
+                response.startsWith("[") -> JSONArray(response).optString(0, "")
+                response.startsWith("\"") -> response.trim('"')
+                else -> response
+            }
+        }.getOrDefault("")
+    }
+
     suspend fun listFriendRequests(session: SupabaseSession): List<FriendRequestEntry> =
         parseFriendRequests(post("/rest/v1/rpc/list_friend_requests", JSONObject(), session.accessToken))
 
@@ -391,7 +407,12 @@ class SupabaseApi(
                     userId = row.getString("user_id"),
                     nickname = row.getString("nickname"),
                     avatarEmoji = row.optTextOrNull("avatar_emoji") ?: "",
-                    publicId = row.optTextOrNull("public_id") ?: ""
+                    publicId = row.optTextOrNull("public_id") ?: "",
+                    isFollowing = row.optBoolean("is_following", false),
+                    isFollowedBy = row.optBoolean("is_followed_by", false),
+                    isFriend = row.optBoolean("is_friend", false),
+                    hasSentFriendRequest = row.optBoolean("has_sent_request", false),
+                    hasIncomingFriendRequest = row.optBoolean("has_incoming_request", false)
                 )
             }
         } catch (e: JSONException) {
@@ -827,6 +848,11 @@ class SupabaseApi(
                 publicId = row.optTextOrNull("public_id") ?: "",
                 isSelf = row.optBoolean("is_self", false),
                 isFriend = row.optBoolean("is_friend", false),
+                isFollowing = row.optBoolean("is_following", false),
+                isFollowedBy = row.optBoolean("is_followed_by", false),
+                isMutual = row.optBoolean("is_mutual", false),
+                hasSentFriendRequest = row.optBoolean("has_sent_request", false),
+                hasIncomingFriendRequest = row.optBoolean("has_incoming_request", false),
                 level = row.optInt("level", 1)
             )
         } catch (e: JSONException) {
@@ -843,7 +869,8 @@ class SupabaseApi(
                     userId = row.getString("user_id"),
                     nickname = row.getString("nickname"),
                     avatarEmoji = row.optTextOrNull("avatar_emoji") ?: "",
-                    mutual = row.optBoolean("mutual", false)
+                    mutual = row.optBoolean("mutual", false),
+                    followedAt = row.optString("followed_at")
                 )
             }
         } catch (e: JSONException) {

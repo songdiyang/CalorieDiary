@@ -1,12 +1,43 @@
 package com.calorie.diary.data.supabase
 
 import android.content.Context
+import com.calorie.diary.data.db.AppDatabase
+import com.calorie.diary.data.db.ChatCacheDao
+import kotlinx.coroutines.flow.first
 
 class GroupsRepository private constructor(context: Context) {
     private val auth = SupabaseAuthRepository.get(context)
+    private val cache: ChatCacheDao = AppDatabase.get(context).chatCacheDao()
+
+    /** 本地缓存的群聊消息与群资料，用于进入群聊页立即展示。 */
+    data class CachedGroupChatData(
+        val ownerId: String,
+        val group: GroupConversation?,
+        val messages: List<GroupMessage>
+    )
+
+    /** 上次登录时缓存的群会话，进入消息页可先展示。 */
+    suspend fun loadCachedGroups(): List<GroupConversation> {
+        val ownerId = auth.account.first()?.userId ?: return emptyList()
+        return cache.groups(ownerId).map { it.toGroupConversation() }
+    }
+
+    suspend fun loadCachedChat(groupId: String): CachedGroupChatData? {
+        val ownerId = auth.account.first()?.userId ?: return null
+        val messages = cache.groupMessages(ownerId, groupId).map { it.toGroupMessage() }
+        val group = cache.groups(ownerId)
+            .firstOrNull { it.groupId == groupId }
+            ?.toGroupConversation()
+        if (messages.isEmpty() && group == null) return null
+        return CachedGroupChatData(ownerId, group, messages)
+    }
 
     suspend fun listGroups(): List<GroupConversation> = auth.withValidSession { api, session ->
-        api.listGroups(session)
+        api.listGroups(session).also { groups ->
+            runCatching {
+                cache.replaceGroups(session.userId, groups.map { it.toCacheEntity(session.userId) })
+            }
+        }
     }
 
     suspend fun createGroup(name: String): GroupConversation =
@@ -51,7 +82,9 @@ class GroupsRepository private constructor(context: Context) {
 
     /** 群主解散群聊。 */
     suspend fun dissolveGroup(groupId: String): String =
-        auth.withValidSession { api, session -> api.dissolveGroup(session, groupId) }
+        auth.withValidSession { api, session ->
+            api.dissolveGroup(session, groupId).also { clearGroupCache(session.userId, groupId) }
+        }
 
     /** 群主把群转让给群内成员。 */
     suspend fun transferOwnership(groupId: String, newOwnerId: String): String =
@@ -61,13 +94,25 @@ class GroupsRepository private constructor(context: Context) {
 
     /** 普通成员退出群聊。 */
     suspend fun leaveGroup(groupId: String): String =
-        auth.withValidSession { api, session -> api.leaveGroup(session, groupId) }
+        auth.withValidSession { api, session ->
+            api.leaveGroup(session, groupId).also { clearGroupCache(session.userId, groupId) }
+        }
 
     suspend fun loadChat(groupId: String, date: String): GroupChatData =
         auth.withValidSession { api, session ->
+            val group = api.listGroups(session).first { it.groupId == groupId }
+            val messages = api.listGroupMessages(session, groupId)
+            runCatching {
+                cache.insertGroups(listOf(group.toCacheEntity(session.userId)))
+                cache.replaceGroupMessages(
+                    ownerId = session.userId,
+                    groupId = groupId,
+                    messages = messages.map { it.toCacheEntity(session.userId, groupId) }
+                )
+            }
             GroupChatData(
-                group = api.listGroups(session).first { it.groupId == groupId },
-                messages = api.listGroupMessages(session, groupId),
+                group = group,
+                messages = messages,
                 members = api.getGroupDailyTotals(session, groupId, date),
                 currentUserId = session.userId
             )
@@ -82,6 +127,20 @@ class GroupsRepository private constructor(context: Context) {
         items: List<SharedFood> = emptyList()
     ): GroupMessage = auth.withValidSession { api, session ->
         api.sendGroupMessage(session, groupId, content, messageType, calories, entryDate, items)
+            .also { sent ->
+                runCatching {
+                    cache.insertGroupMessages(
+                        listOf(sent.toCacheEntity(session.userId, groupId))
+                    )
+                }
+            }
+    }
+
+    private suspend fun clearGroupCache(ownerId: String, groupId: String) {
+        runCatching {
+            cache.deleteGroup(ownerId, groupId)
+            cache.clearGroupMessages(ownerId, groupId)
+        }
     }
 
     companion object {

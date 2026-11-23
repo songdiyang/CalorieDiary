@@ -7,11 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import com.calorie.diary.data.LocaleManager
 import com.calorie.diary.data.network.NetworkMonitor
 import com.calorie.diary.ui.navigation.AppScaffold
@@ -29,6 +31,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // 系统栏跟随主题取色，避免状态栏 / 导航栏残留旧主题色
+            val systemBarColor = Cream.toArgb()
+            SideEffect {
+                window.statusBarColor = systemBarColor
+                window.navigationBarColor = systemBarColor
+            }
             CalorieDiaryTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
                     var showSplash by remember { mutableStateOf(true) }

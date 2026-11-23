@@ -35,8 +35,8 @@ android {
         applicationId = "com.calorie.diary"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "0.21"
+        versionCode = 27
+        versionName = "0.23"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 云端识别代理地址与应用标识；未配置时 ProxyVisionClient 直接报服务不可用
         buildConfigField("String", "VISION_PROXY_URL", "\"$visionProxyUrl\"")

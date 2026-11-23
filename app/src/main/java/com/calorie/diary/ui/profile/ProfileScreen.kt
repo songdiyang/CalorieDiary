@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +47,7 @@ import com.calorie.diary.data.supabase.SocialSummary
 import com.calorie.diary.data.supabase.SupabaseAuthRepository
 import com.calorie.diary.ui.components.DefaultAvatar
 import com.calorie.diary.ui.components.SoftCard
+import com.calorie.diary.ui.components.uidCopyGestures
 import com.calorie.diary.ui.home.appVm
 import com.calorie.diary.ui.navigation.Routes
 import com.calorie.diary.ui.theme.CardWhite
@@ -272,6 +272,7 @@ private fun ProfileHeaderCard(
     avatarId: String?
 ) {
     val clipboard = LocalClipboardManager.current
+    val uidCopiedHint = stringResource(R.string.profile_id_copied)
     SoftCard(
         Modifier
             .fillMaxWidth()
@@ -334,17 +335,11 @@ private fun ProfileHeaderCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(CardWhite)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                enabled = !loggedIn || userId.isNotBlank(),
-                                onClick = {
-                                    if (loggedIn) {
-                                        clipboard.setText(AnnotatedString(userId))
-                                    } else {
-                                        onAccount()
-                                    }
-                                }
+                            .uidCopyGestures(
+                                uid = if (loggedIn) userId else "",
+                                clipboardManager = clipboard,
+                                copiedHint = uidCopiedHint,
+                                onTap = if (loggedIn) null else onAccount
                             )
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     )
