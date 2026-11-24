@@ -56,3 +56,46 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+  publish:
+    name: Publish APK Release
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download Debug APK
+        uses: actions/download-artifact@v8
+        with:
+          name: CalorieDiary-debug-${{ github.run_number }}
+          path: release
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: latest-build
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          asset=release/app-debug.apk
+          test -s "$asset"
+          mv "$asset" release/CalorieDiary-debug.apk
+          asset=release/CalorieDiary-debug.apk
+          checksum=$(sha256sum "$asset" | cut -d' ' -f1)
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          {
+            printf '自动构建的 Debug APK（非商店正式版）。\n\n'
+            printf '提交: %s\n' "$GITHUB_SHA"
+            printf 'SHA-256: %s\n' "$checksum"
+            printf '构建记录: %s\n\n' "$run_url"
+            printf '每次 main 构建成功后，本 Release 与 APK 会自动更新。\n'
+          } > release/notes.md
+          title="最新自动构建 #${RUN_NUMBER}（Debug）"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$asset" --clobber
+            gh release edit "$RELEASE_TAG" --title "$title" --notes-file release/notes.md --latest
+          else
+            gh release create "$RELEASE_TAG" "$asset" --target "$GITHUB_SHA" --title "$title" --notes-file release/notes.md --latest
+          fi
