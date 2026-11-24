@@ -45,6 +45,23 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 支持的最低系统版本：Android 8.0（API 26）。
 
+## GitHub Actions 自动构建
+
+工作流配置见 [.github/workflows/android-apk.yml](.github/workflows/android-apk.yml)。每次推送到 `main`、向 `main` 提交 Pull Request，或在 Actions 页面手动点击 **Run workflow** 时，都会自动构建 Debug APK。
+
+构建完成后，进入仓库 **Actions → Android APK → 对应运行记录**，在页面底部的 **Artifacts** 区域下载 `CalorieDiary-debug-构建编号`。产物保留 30 天，解压后即可得到 `app-debug.apk`。
+
+如需让登录、同步和云端识别在构建产物中生效，在仓库 **Settings → Secrets and variables → Actions** 中配置以下变量：
+
+| 名称 | 用途 |
+| --- | --- |
+| `SUPABASE_URL` | Supabase 项目 URL |
+| `SUPABASE_ANON_KEY` | Supabase anon / publishable key |
+| `VISION_PROXY_URL` | 云端识别代理地址，可选 |
+| `VISION_APP_KEY` | 云端识别代理的应用标识，可选 |
+
+工作流优先读取 **Variables**，为空时回退到同名的 **Secrets**。客户端只能使用 anon / publishable key，不要配置 `service_role` 等服务端密钥。当前流程生成可直接安装的 Debug APK，不包含正式 Release 签名。
+
 ## 目录结构
 
 ```
