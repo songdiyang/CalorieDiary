@@ -40,7 +40,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK
         run: |
