@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -71,8 +72,8 @@ class SupabaseSessionStore(context: Context) {
     }
 
     private fun readActive(p: Preferences): SupabaseSession? {
-        val accessToken = p[Keys.ACCESS_TOKEN]
-        val refreshToken = p[Keys.REFRESH_TOKEN]
+        val accessToken = SessionCipher.decrypt(p[Keys.ACCESS_TOKEN].orEmpty())
+        val refreshToken = SessionCipher.decrypt(p[Keys.REFRESH_TOKEN].orEmpty())
         val expiresAt = p[Keys.EXPIRES_AT]
         val userId = p[Keys.USER_ID]
         if (accessToken.isNullOrBlank() || refreshToken.isNullOrBlank() ||
@@ -85,16 +86,34 @@ class SupabaseSessionStore(context: Context) {
             refreshToken = refreshToken,
             expiresAtMillis = expiresAt,
             userId = userId,
-            email = p[Keys.EMAIL].orEmpty()
+            email = SessionCipher.decrypt(p[Keys.EMAIL].orEmpty())
         )
     }
 
     private fun writeActive(p: MutablePreferences, session: SupabaseSession) {
-        p[Keys.ACCESS_TOKEN] = session.accessToken
-        p[Keys.REFRESH_TOKEN] = session.refreshToken
+        p[Keys.ACCESS_TOKEN] = SessionCipher.encrypt(session.accessToken)
+        p[Keys.REFRESH_TOKEN] = SessionCipher.encrypt(session.refreshToken)
         p[Keys.EXPIRES_AT] = session.expiresAtMillis
         p[Keys.USER_ID] = session.userId
-        p[Keys.EMAIL] = session.email
+        p[Keys.EMAIL] = SessionCipher.encrypt(session.email)
+    }
+
+    /** 把历史明文令牌原地加密；只在检测到明文时写入一次。 */
+    suspend fun encryptLegacyIfNeeded() {
+        val snapshot = store.data.first()
+        val legacy = listOf(
+            snapshot[Keys.ACCESS_TOKEN],
+            snapshot[Keys.REFRESH_TOKEN],
+            snapshot[Keys.EMAIL],
+            snapshot[Keys.ACCOUNTS_JSON]
+        ).any { it != null && it.isNotBlank() && !SessionCipher.isEncrypted(it) }
+        if (!legacy) return
+        store.edit { p ->
+            p[Keys.ACCESS_TOKEN]?.let { p[Keys.ACCESS_TOKEN] = SessionCipher.encrypt(it) }
+            p[Keys.REFRESH_TOKEN]?.let { p[Keys.REFRESH_TOKEN] = SessionCipher.encrypt(it) }
+            p[Keys.EMAIL]?.let { p[Keys.EMAIL] = SessionCipher.encrypt(it) }
+            p[Keys.ACCOUNTS_JSON]?.let { p[Keys.ACCOUNTS_JSON] = SessionCipher.encrypt(it) }
+        }
     }
 
     private fun clearActive(p: MutablePreferences) {
@@ -114,7 +133,7 @@ class SupabaseSessionStore(context: Context) {
     private fun parseSessions(raw: String?): List<SupabaseSession> {
         if (raw.isNullOrBlank()) return emptyList()
         return runCatching {
-            val array = JSONArray(raw)
+            val array = JSONArray(SessionCipher.decrypt(raw))
             (0 until array.length()).mapNotNull { index ->
                 val item = array.getJSONObject(index)
                 val session = SupabaseSession(
@@ -144,6 +163,6 @@ class SupabaseSessionStore(context: Context) {
                     .put("email", session.email)
             )
         }
-        return array.toString()
+        return SessionCipher.encrypt(array.toString())
     }
 }

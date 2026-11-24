@@ -280,7 +280,9 @@ data class GroupInfo(
     val name: String,
     val ownerId: String,
     val announcement: String,
-    val memberCount: Int
+    val memberCount: Int,
+    /** 是否允许他人通过群号搜索并加入；关闭后仅能被邀请。 */
+    val searchable: Boolean = true
 )
 
 /** 群聊主页成员条目，群主会被排在最前。 */

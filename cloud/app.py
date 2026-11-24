@@ -487,14 +487,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         # 健康检查（平台就绪探针会调用），不暴露密钥，只报告是否已配置
         if self._path() in ("/", "/health"):
-            self._send(200, {
-                "ok": True,
-                "service": "calorie-diary-proxy",
-                "version": "1.0",
-                "authConfigured": bool(EXPECTED_APP_KEY),
-                "supabaseConfigured": bool(SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY),
-                "deepseekConfigured": bool(os.environ.get("DEEPSEEK_API_KEY", "").strip()),
-            })
+            # 只报告存活状态，不暴露服务端配置细节。
+            self._send(200, {"ok": True})
         else:
             self._error(404, "not_found", "接口不存在")
 

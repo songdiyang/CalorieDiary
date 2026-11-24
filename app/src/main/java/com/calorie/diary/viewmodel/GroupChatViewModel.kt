@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorie.diary.R
+import com.calorie.diary.data.ChatEmojis
 import com.calorie.diary.data.network.NetworkErrorKind
 import com.calorie.diary.data.network.toNetworkErrorKind
 import com.calorie.diary.data.supabase.FriendEntry
@@ -16,7 +17,10 @@ import com.calorie.diary.data.supabase.SharedFood
 import com.calorie.diary.data.supabase.SupabaseApiException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,6 +44,10 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = GroupsRepository.get(app)
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState = _uiState.asStateFlow()
+    private val _riceEffects = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+    /** 特殊表情（米饭）触发的全屏特效事件，收到后播放一次落米动画。 */
+    val riceEffects: SharedFlow<Unit> = _riceEffects.asSharedFlow()
     private var groupId: String? = null
     private var date: String? = null
     private var refreshJob: Job? = null
@@ -92,6 +100,7 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             try {
+                val previousMaxId = _uiState.value.messages.maxOfOrNull { it.id } ?: 0L
                 val data = repo.loadChat(id, entryDate)
                 _uiState.update {
                     it.copy(
@@ -100,6 +109,10 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
                         members = data.members,
                         errorRes = null
                     )
+                }
+                // 轮询拉到新的米饭表情消息时播放一次全屏特效。
+                if (data.messages.any { it.id > previousMaxId && ChatEmojis.isRice(it.content) }) {
+                    _riceEffects.tryEmit(Unit)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -176,6 +189,7 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
                         sentCount = it.sentCount + 1
                     )
                 }
+                if (ChatEmojis.isRice(sent.content)) _riceEffects.tryEmit(Unit)
                 refresh()
             } catch (e: CancellationException) {
                 throw e
@@ -191,9 +205,14 @@ class GroupChatViewModel(app: Application) : AndroidViewModel(app) {
         groupId ?: throw IllegalStateException("Group is not loaded")
 
     private fun errorMessage(error: Throwable): Int {
-        if (error is SupabaseApiException &&
-            error.serverMessage?.contains("not_group_member", true) == true
-        ) return R.string.groups_not_member
+        if (error is SupabaseApiException) {
+            if (error.serverMessage?.contains("rate_limited", ignoreCase = true) == true) {
+                return R.string.error_rate_limited
+            }
+            if (error.serverMessage?.contains("not_group_member", ignoreCase = true) == true) {
+                return R.string.groups_not_member
+            }
+        }
         return when (error.toNetworkErrorKind()) {
             NetworkErrorKind.OFFLINE -> R.string.error_network_offline
             NetworkErrorKind.TIMEOUT -> R.string.error_network_timeout

@@ -650,15 +650,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         identity.value?.remoteEnabled != true || NetworkMonitor.isOnline()
 
     /** 把技术异常翻译成用户能执行的提示，避免直接暴露 IOException 文本。 */
-    private fun groupErrorMessage(e: Throwable): String = when (e.toNetworkErrorKind()) {
-        NetworkErrorKind.OFFLINE -> str(R.string.error_network_offline)
-        NetworkErrorKind.TIMEOUT -> str(R.string.error_network_timeout)
-        NetworkErrorKind.DNS, NetworkErrorKind.CONNECTION -> str(R.string.error_network_unreachable)
-        NetworkErrorKind.SERVER -> str(R.string.error_server_busy)
-        NetworkErrorKind.RATE_LIMIT -> str(R.string.error_rate_limited)
-        NetworkErrorKind.AUTH -> str(R.string.error_auth_failed)
-        NetworkErrorKind.NOT_FOUND -> str(R.string.group_not_found)
-        else -> str(R.string.error_generic)
+    private fun groupErrorMessage(e: Throwable): String {
+        if (e is SupabaseApiException) {
+            val message = e.serverMessage.orEmpty()
+            if (message.contains("group_not_searchable", ignoreCase = true)) {
+                return str(R.string.group_search_disabled)
+            }
+            if (message.contains("rate_limited", ignoreCase = true)) {
+                return str(R.string.error_rate_limited)
+            }
+        }
+        return when (e.toNetworkErrorKind()) {
+            NetworkErrorKind.OFFLINE -> str(R.string.error_network_offline)
+            NetworkErrorKind.TIMEOUT -> str(R.string.error_network_timeout)
+            NetworkErrorKind.DNS, NetworkErrorKind.CONNECTION ->
+                str(R.string.error_network_unreachable)
+            NetworkErrorKind.SERVER -> str(R.string.error_server_busy)
+            NetworkErrorKind.RATE_LIMIT -> str(R.string.error_rate_limited)
+            NetworkErrorKind.AUTH -> str(R.string.error_auth_failed)
+            NetworkErrorKind.NOT_FOUND -> str(R.string.group_not_found)
+            else -> str(R.string.error_generic)
+        }
     }
 
     fun leaveActiveGroup() = launchSafe(R.string.error_generic) {

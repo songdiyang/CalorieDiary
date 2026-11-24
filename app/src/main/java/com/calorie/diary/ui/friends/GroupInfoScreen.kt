@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -93,6 +95,7 @@ fun GroupInfoScreen(
         onBack = onBack,
         onInviteMembers = vm::inviteMembers,
         onUpdateName = vm::updateName,
+        onSetSearchable = vm::setSearchable,
         onOpenAnnouncement = onOpenAnnouncement,
         onDissolveGroup = vm::dissolveGroup,
         onLeaveGroup = vm::leaveGroup,
@@ -106,6 +109,7 @@ private fun GroupInfoContent(
     onBack: () -> Unit,
     onInviteMembers: (List<String>) -> Unit,
     onUpdateName: (String) -> Unit,
+    onSetSearchable: (Boolean) -> Unit,
     onOpenAnnouncement: () -> Unit,
     onDissolveGroup: () -> Unit,
     onLeaveGroup: () -> Unit,
@@ -189,6 +193,14 @@ private fun GroupInfoContent(
                         info = info,
                         enabled = !state.busy,
                         onClick = onOpenAnnouncement
+                    )
+                }
+                item(key = "searchable") {
+                    GroupSearchableCard(
+                        info = info,
+                        canEdit = state.isOwner,
+                        enabled = !state.busy,
+                        onToggle = onSetSearchable
                     )
                 }
                 item(key = "manage") {
@@ -411,6 +423,56 @@ private fun InviteCell(enabled: Boolean, onInvite: () -> Unit) {
             fontFamily = CuteFont, fontSize = 11.sp, color = InkLight,
             maxLines = 1
         )
+    }
+}
+
+/** 群号搜索开关：仅群主可切换；关闭后他人无法凭群号加入，只能被邀请。 */
+@Composable
+private fun GroupSearchableCard(
+    info: GroupInfo?,
+    canEdit: Boolean,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    info ?: return
+    SoftCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.group_info_searchable_title),
+                    fontFamily = CuteFont, fontSize = 16.sp, color = Ink
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(
+                        if (info.searchable) R.string.group_info_searchable_hint_on
+                        else R.string.group_info_searchable_hint_off
+                    ),
+                    fontFamily = CuteFont,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = InkLight
+                )
+                if (!canEdit) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.group_info_searchable_owner_only),
+                        fontFamily = CuteFont, fontSize = 10.sp, color = InkLight
+                    )
+                }
+            }
+            Switch(
+                checked = info.searchable,
+                onCheckedChange = onToggle,
+                enabled = canEdit && enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = CardWhite,
+                    checkedTrackColor = Orange,
+                    uncheckedThumbColor = CardWhite,
+                    uncheckedTrackColor = Hairline
+                )
+            )
+        }
     }
 }
 

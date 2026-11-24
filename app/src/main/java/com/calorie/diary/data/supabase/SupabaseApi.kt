@@ -71,7 +71,7 @@ class SupabaseApi(
             ?: throw NetworkException(NetworkErrorKind.BAD_RESPONSE, "邀请码状态响应异常")
     }
 
-    /** 注册完成后应用邀请码：与服务端建立好友关系。 */
+    /** 注册完成后应用邀请码：自动关注邀请人，成为好友仍需互关与好友申请。 */
     suspend fun applyInvitationCode(session: SupabaseSession, code: String): Boolean {
         val response = post(
             "/rest/v1/rpc/apply_invitation_code",
@@ -623,6 +623,22 @@ class SupabaseApi(
         return row.optString("updated_name") to row.optString("updated_announcement")
     }
 
+    /** 群主设置群号是否可被搜索加入，返回保存后的状态。 */
+    suspend fun setGroupSearchable(
+        session: SupabaseSession,
+        groupId: String,
+        searchable: Boolean
+    ): Boolean {
+        val response = post(
+            "/rest/v1/rpc/set_group_searchable",
+            JSONObject().put("p_group_id", groupId).put("p_searchable", searchable),
+            session.accessToken
+        )
+        val json = parseObject(response)
+        return json.optString("status") == "success" &&
+            json.optBoolean("searchable", searchable)
+    }
+
     /** 群主解散群聊，返回 dissolved。 */
     suspend fun dissolveGroup(session: SupabaseSession, groupId: String): String =
         parseGroupActionResult(
@@ -1044,7 +1060,8 @@ class SupabaseApi(
                 name = row.getString("info_name"),
                 ownerId = row.getString("info_owner_id"),
                 announcement = row.optString("info_announcement"),
-                memberCount = row.optInt("info_member_count", 0)
+                memberCount = row.optInt("info_member_count", 0),
+                searchable = row.optBoolean("info_searchable", true)
             )
         } catch (e: JSONException) {
             throw NetworkException(NetworkErrorKind.BAD_RESPONSE, null, e)

@@ -147,7 +147,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** 注册第二步：验证邮箱验证码，设置密码并登录；填写了邀请码则自动加好友。 */
+    /** 注册第二步：验证邮箱验证码，设置密码并登录；填写了邀请码则自动关注邀请人。 */
     fun register(email: String, password: String, code: String, invitationCode: String) {
         if (!AuthInputValidator.isValid(email, password)) {
             _uiState.update {
@@ -568,6 +568,9 @@ internal fun nicknameErrorMessage(error: Throwable): Int {
 
 internal fun authErrorMessage(error: Throwable): Int {
     if (error is SupabaseApiException) {
+        if (error.serverMessage?.contains("rate_limited", ignoreCase = true) == true) {
+            return R.string.error_rate_limited
+        }
         if (error.serverMessage?.contains("expired or is invalid", ignoreCase = true) == true) {
             return R.string.auth_otp_invalid
         }

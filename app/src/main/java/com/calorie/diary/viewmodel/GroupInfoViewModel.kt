@@ -98,6 +98,32 @@ class GroupInfoViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateName(name: String) = save { repo.updateInfo(requireGroupId(), name = name.trim()) }
 
+    /** 群主切换“通过群号被搜索加入”。 */
+    fun setSearchable(searchable: Boolean) {
+        val info = _uiState.value.info ?: return
+        if (!_uiState.value.isOwner || _uiState.value.busy || info.searchable == searchable) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(busy = true, errorRes = null) }
+            try {
+                val saved = repo.setGroupSearchable(requireGroupId(), searchable)
+                _uiState.update {
+                    it.copy(
+                        busy = false,
+                        info = it.info?.copy(searchable = saved),
+                        notice = getApplication<Application>().getString(
+                            if (saved) R.string.group_info_search_enabled_notice
+                            else R.string.group_info_search_disabled_notice
+                        )
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _uiState.update { it.copy(busy = false, errorRes = errorMessage(e)) }
+            }
+        }
+    }
+
     fun clearNotice() {
         _uiState.update { it.copy(notice = null) }
     }

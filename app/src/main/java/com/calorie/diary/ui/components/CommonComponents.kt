@@ -261,6 +261,38 @@ fun DefaultAvatar(
     }
 }
 
+/**
+ * 聊天消息内容：若整条消息就是一个已映射的表情贴纸，用贴纸渲染；
+ * 否则按普通文本渲染。
+ */
+@Composable
+fun ChatMessageContent(
+    content: String,
+    fontFamily: androidx.compose.ui.text.font.FontFamily,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    lineHeight: androidx.compose.ui.unit.TextUnit,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val artRes = ChatEmojiArt.resId(content)
+    if (artRes != null) {
+        Image(
+            painter = painterResource(artRes),
+            contentDescription = content,
+            modifier = modifier.size(34.dp)
+        )
+    } else {
+        Text(
+            text = content,
+            fontFamily = fontFamily,
+            fontSize = fontSize,
+            lineHeight = lineHeight,
+            color = color,
+            modifier = modifier
+        )
+    }
+}
+
 @Composable
 fun UserAvatar(
     userId: String,

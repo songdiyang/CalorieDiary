@@ -416,7 +416,7 @@
     <string name="auth_otp_required">请输入邮箱中的验证码</string>
     <string name="auth_otp_invalid">验证码错误或已过期，请重新获取</string>
     <string name="auth_invitation_optional_label">邀请码（选填）</string>
-    <string name="auth_invitation_optional_hint">填写好友的 8 位邀请码，注册后自动成为好友</string>
+    <string name="auth_invitation_optional_hint">填写好友的 8 位邀请码，注册后自动关注对方</string>
     <string name="auth_invitation_invalid">邀请码无效，请检查后重试</string>
     <string name="auth_invitation_deleted">该邀请码已失效（邀请人已注销）</string>
     <string name="auth_email_registered">该邮箱已注册，请直接登录</string>
@@ -703,11 +703,9 @@
     <string name="relation_bestie">闺蜜</string>
     <string name="chat_calorie_expand_hint">点击看吃了什么</string>
     <string name="chat_calorie_collapse_hint">点击收起</string>
+    <string name="chat_calorie_items_count">共 %1$d 样食物</string>
     <string name="chat_food_grams">%1$d 克</string>
-    <string name="rice_share_title">今日米饭山</string>
-    <string name="rice_share_bowls">吃了 %1$d 碗米饭</string>
-    <string name="rice_share_type">rice_mountain</string>
-    <string name="chat_share_rice">分享米饭山</string>
+    <string name="chat_emoji_special">特效</string>
     <string name="friends_spark_days">火花 %1$d 天</string>
     <string name="chat_spark_hint">今天互发消息可点亮火花</string>
     <string name="friends_copied">已复制</string>
@@ -830,6 +828,13 @@
     <string name="group_me">我</string>
     <string name="group_leave">退出房间</string>
     <string name="group_not_found">房间不存在，请检查邀请码</string>
+    <string name="group_search_disabled">该群已关闭群号搜索，请联系群成员邀请你加入</string>
+    <string name="group_info_searchable_title">通过群号被搜索加入</string>
+    <string name="group_info_searchable_hint_on">开启后，知道群号的人可以直接加入群聊</string>
+    <string name="group_info_searchable_hint_off">已关闭：凭群号无法加入，只能由群成员邀请</string>
+    <string name="group_info_searchable_owner_only">仅群主可修改</string>
+    <string name="group_info_search_enabled_notice">已开启群号搜索</string>
+    <string name="group_info_search_disabled_notice">已关闭群号搜索</string>
     <string name="group_offline_hint">创建或加入小组需要联网，请连接网络后重试</string>
     <string name="settings_nickname">用户名</string>
     <string name="settings_nickname_change">修改</string>

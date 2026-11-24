@@ -22,6 +22,12 @@ fun buildTimeConfig(key: String, envName: String): String =
         .replace("\\", "")
         .replace("\"", "")
 
+val releaseStoreFile = localProps.getProperty("signing.storeFile")?.trim().orEmpty()
+val releaseStorePassword = localProps.getProperty("signing.storePassword")?.trim().orEmpty()
+val releaseStoreType = localProps.getProperty("signing.storeType")?.trim().orEmpty()
+val releaseKeyAlias = localProps.getProperty("signing.keyAlias")?.trim().orEmpty()
+val releaseKeyPassword = localProps.getProperty("signing.keyPassword")?.trim().orEmpty()
+
 val visionProxyUrl = buildTimeConfig("vision.proxyUrl", "VISION_PROXY_URL")
 val visionAppKey = buildTimeConfig("vision.appKey", "VISION_APP_KEY")
 val supabaseUrl = buildTimeConfig("supabase.url", "SUPABASE_URL").trimEnd('/')
@@ -35,7 +41,7 @@ android {
         applicationId = "com.calorie.diary"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
+        versionCode = 36
         versionName = "0.23"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 云端识别代理地址与应用标识；未配置时 ProxyVisionClient 直接报服务不可用
@@ -49,6 +55,20 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseStoreFile.isNotEmpty()) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                if (releaseStoreType.isNotEmpty()) {
+                    storeType = releaseStoreType
+                }
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -56,6 +76,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     compileOptions {

@@ -53,16 +53,18 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.calorie.diary.R
 import com.calorie.diary.data.AppRefreshBus
+import com.calorie.diary.data.ChatEmojis
 import com.calorie.diary.ui.navigation.Routes
 import com.calorie.diary.data.supabase.FriendEntry
 import com.calorie.diary.data.supabase.FriendMessage
 import com.calorie.diary.data.supabase.SharedFood
 import com.calorie.diary.ui.components.CalorieShareCard
+import com.calorie.diary.ui.components.ChatEmojiPanel
 import com.calorie.diary.ui.components.ChatFunctionTile
+import com.calorie.diary.ui.components.EmojiInputVisualTransformation
+import com.calorie.diary.ui.components.ChatMessageContent
 import com.calorie.diary.ui.components.CuteButton
-import com.calorie.diary.ui.components.RiceMountainCard
-import com.calorie.diary.ui.components.riceBowlsOf
-import com.calorie.diary.ui.components.riceCaloriesOf
+import com.calorie.diary.ui.components.RiceRainEffect
 import com.calorie.diary.ui.components.UserAvatar
 import com.calorie.diary.ui.home.appVm
 import com.calorie.diary.ui.theme.CardWhite
@@ -110,51 +112,40 @@ fun FriendChatScreen(friendId: String, onBack: () -> Unit, onOpenPersonal: (Stri
             vm.refresh()
         }
     }
-    ChatContent(
-        state = state,
-        friendId = friendId,
-        onBack = onBack,
-        onSend = vm::send,
-        onShareCalories = {
-            vm.shareCalories(
-                calories = dayTotal,
-                entryDate = selectedDate,
-                items = dayEntries.map {
-                    SharedFood(
-                        name = it.foodName,
-                        emoji = it.emoji,
-                        grams = it.grams,
-                        calories = it.calories,
-                        meal = it.mealType
-                    )
-                }
-            )
-        },
-        onShareRice = {
-            val riceItems = dayEntries.filter {
-                it.foodName.contains("饭") || it.emoji.contains("🍚") || it.emoji.contains("🍙")
-            }.map {
-                SharedFood(
-                    name = it.foodName,
-                    emoji = it.emoji,
-                    grams = it.grams,
-                    calories = it.calories,
-                    meal = it.mealType
+    var showRiceEffect by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        vm.riceEffects.collect { showRiceEffect = true }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        ChatContent(
+            state = state,
+            friendId = friendId,
+            onBack = onBack,
+            onSend = vm::send,
+            onShareCalories = {
+                vm.shareCalories(
+                    calories = dayTotal,
+                    entryDate = selectedDate,
+                    items = dayEntries.map {
+                        SharedFood(
+                            name = it.foodName,
+                            emoji = it.emoji,
+                            grams = it.grams,
+                            calories = it.calories,
+                            meal = it.mealType
+                        )
+                    }
                 )
-            }
-            val fallback = listOf(SharedFood("米饭", "🍚", 150, 232, 1))
-            val items = riceItems.ifEmpty { fallback }
-            vm.shareCalories(
-                calories = riceCaloriesOf(items) ?: fallback.first().calories,
-                entryDate = selectedDate,
-                items = items,
-                messageType = "rice_mountain"
-            )
-        },
-        onBindRelation = vm::bindRelation,
-        myAvatarEmoji = identity?.avatarEmoji.orEmpty(),
-        onOpenPersonal = { onOpenPersonal(friendId) }
-    )
+            },
+            onBindRelation = vm::bindRelation,
+            myAvatarEmoji = identity?.avatarEmoji.orEmpty(),
+            onOpenPersonal = { onOpenPersonal(friendId) }
+        )
+        if (showRiceEffect) {
+            RiceRainEffect(onFinished = { showRiceEffect = false })
+        }
+    }
 }
 
 @Composable
@@ -164,13 +155,13 @@ private fun ChatContent(
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onShareCalories: () -> Unit = {},
-    onShareRice: () -> Unit = {},
     onBindRelation: (String) -> Unit = {},
     myAvatarEmoji: String = "",
     onOpenPersonal: () -> Unit = {}
 ) {
     var input by remember { mutableStateOf("") }
     var panelOpen by remember { mutableStateOf(false) }
+    var emojiPanelOpen by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(state.sentCount) {
         if (state.sentCount > 0) input = ""
@@ -282,19 +273,34 @@ private fun ChatContent(
             input = input,
             onInputChange = {
                 input = it.take(1000)
-                if (it.isNotEmpty()) panelOpen = false
+                if (it.isNotEmpty()) {
+                    panelOpen = false
+                    emojiPanelOpen = false
+                }
             },
             sending = state.sending,
             panelOpen = panelOpen,
-            onTogglePanel = { panelOpen = !panelOpen },
+            emojiPanelOpen = emojiPanelOpen,
+            onTogglePanel = {
+                panelOpen = !panelOpen
+                if (panelOpen) emojiPanelOpen = false
+            },
+            onToggleEmoji = {
+                emojiPanelOpen = !emojiPanelOpen
+                if (emojiPanelOpen) panelOpen = false
+            },
             onSend = { onSend(input) },
             onShareCalories = {
                 panelOpen = false
                 onShareCalories()
             },
-            onShareRice = {
-                panelOpen = false
-                onShareRice()
+            onPickEmoji = { emoji ->
+                if (ChatEmojis.isRice(emoji)) {
+                    emojiPanelOpen = false
+                    onSend(emoji)
+                } else {
+                    input = (input + emoji).take(1000)
+                }
             }
         )
     }
@@ -318,33 +324,14 @@ private fun ChatComposer(
     onInputChange: (String) -> Unit,
     sending: Boolean,
     panelOpen: Boolean,
+    emojiPanelOpen: Boolean,
     onTogglePanel: () -> Unit,
+    onToggleEmoji: () -> Unit,
     onSend: () -> Unit,
     onShareCalories: () -> Unit,
-    onShareRice: () -> Unit
+    onPickEmoji: (String) -> Unit
 ) {
     Column(Modifier.fillMaxWidth().background(CardWhite)) {
-        if (panelOpen) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(ScreenBg)
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                ChatFunctionTile(
-                    iconRes = R.drawable.meal_lunch,
-                    label = stringResource(R.string.chat_share_today),
-                    onClick = onShareCalories
-                )
-                ChatFunctionTile(
-                    iconRes = R.drawable.ic_food_rice,
-                    label = stringResource(R.string.chat_share_rice),
-                    onClick = onShareRice
-                )
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
-        }
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -355,6 +342,7 @@ private fun ChatComposer(
                 enabled = !sending,
                 textStyle = TextStyle(fontFamily = CuteFont, fontSize = 15.sp, color = Ink),
                 cursorBrush = SolidColor(Orange),
+                visualTransformation = EmojiInputVisualTransformation,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 modifier = Modifier
                     .weight(1f)
@@ -372,7 +360,26 @@ private fun ChatComposer(
                     inner()
                 }
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(6.dp))
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (emojiPanelOpen) Orange.copy(alpha = 0.14f) else Color.Transparent)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onToggleEmoji
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.emoji_smile),
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(Modifier.width(6.dp))
             if (input.isNotBlank()) {
                 CuteButton(
                     text = stringResource(R.string.chat_send),
@@ -400,6 +407,27 @@ private fun ChatComposer(
                     )
                 }
             }
+        }
+        // 面板放在输入框下方，展开时输入框保持在上方。
+        if (panelOpen) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(ScreenBg)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                ChatFunctionTile(
+                    iconRes = R.drawable.meal_lunch,
+                    label = stringResource(R.string.chat_share_today),
+                    onClick = onShareCalories
+                )
+            }
+        }
+        if (emojiPanelOpen) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+            ChatEmojiPanel(onPick = onPickEmoji)
         }
     }
 }
@@ -657,8 +685,7 @@ private fun MessageList(
                         Modifier.weight(1f),
                         contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart
                     ) {
-                        val calorie = message.messageType == "calorie_share" ||
-                                message.messageType == "rice_mountain"
+                        val calorie = message.messageType == "calorie_share"
                         // 四个角统一圆角，不做对话气泡的尾巴样式
                         val bubbleShape = RoundedCornerShape(18.dp)
                         Box(
@@ -686,17 +713,14 @@ private fun MessageList(
                                 )
                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
-                            if (message.messageType == "rice_mountain") {
-                                RiceMountainCard(
-                                    bowls = riceBowlsOf(message.items),
-                                    calories = message.calories
-                                )
-                            } else if (calorie) {
+                            if (calorie) {
                                 CalorieShareCard(message.id, message.calories, message.items)
                             } else {
-                                Text(
-                                    message.content,
-                                    fontFamily = CuteFont, fontSize = 14.sp, lineHeight = 20.sp,
+                                ChatMessageContent(
+                                    content = message.content,
+                                    fontFamily = CuteFont,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
                                     color = if (mine) Color.White else Ink
                                 )
                             }
@@ -738,11 +762,7 @@ internal fun ChatPreviewContent() {
                         SharedFood("鸡胸肉饭", "🍚", 300, 390, 1)
                     )
                 ),
-                FriendMessage(
-                    4, "me", "今日米饭山", "",
-                    messageType = "rice_mountain", calories = 348, entryDate = "2026-11-17",
-                    items = listOf(SharedFood("米饭", "🍚", 300, 348, 1))
-                )
+                FriendMessage(4, "me", "🍚", "")
             )
         ),
         friendId = "f1",

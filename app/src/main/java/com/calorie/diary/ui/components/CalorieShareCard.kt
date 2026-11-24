@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -31,18 +32,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorie.diary.R
 import com.calorie.diary.data.supabase.SharedFood
+import com.calorie.diary.ui.theme.CardWhite
 import com.calorie.diary.ui.theme.CuteFont
 import com.calorie.diary.ui.theme.Hairline
 import com.calorie.diary.ui.theme.Ink
 import com.calorie.diary.ui.theme.InkLight
 import com.calorie.diary.ui.theme.NumberFont
 import com.calorie.diary.ui.theme.OrangeDeep
+import com.calorie.diary.ui.theme.YellowSoft
 
 /**
  * 聊天气泡里的热量分享卡片：总热量 + 可展开的食物明细。
@@ -63,25 +67,39 @@ fun CalorieShareCard(
     )
     Column(
         modifier
-            .then(if (expandable) Modifier.width(216.dp) else Modifier)
-            .clip(RoundedCornerShape(10.dp))
+            .then(if (expandable) Modifier.width(232.dp) else Modifier)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(enabled = expandable) { expanded = !expanded }
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardWhite.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.meal_lunch),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(R.string.chat_calorie_share_title),
-                    fontFamily = CuteFont, fontSize = 11.sp, color = InkLight
+                    fontFamily = CuteFont, fontSize = 10.sp, color = InkLight
                 )
+                Spacer(Modifier.height(1.dp))
                 calories?.let { value ->
                     Text(
                         stringResource(R.string.group_calories_value, value),
-                        fontFamily = NumberFont, fontSize = 18.sp, color = OrangeDeep
+                        fontFamily = NumberFont, fontSize = 20.sp, color = OrangeDeep
                     )
                 }
             }
             if (expandable) {
-                Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     ChevronDown(
                         Modifier
@@ -100,25 +118,51 @@ fun CalorieShareCard(
             }
         }
         if (expandable) {
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.chat_calorie_items_count, items.size),
+                    fontFamily = CuteFont, fontSize = 9.sp, color = InkLight,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(CardWhite.copy(alpha = 0.6f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                )
+            }
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .height(1.dp)
-                            .background(Hairline)
-                    )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardWhite.copy(alpha = 0.55f))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
                     items.groupBy { it.meal }.toSortedMap().forEach { (meal, foods) ->
-                        Text(
-                            stringResource(mealLabelRes(meal)),
-                            fontFamily = CuteFont, fontSize = 11.sp, color = InkLight,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                        )
+                        Row(
+                            Modifier.padding(top = 4.dp, bottom = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(mealLabelRes(meal)),
+                                fontFamily = CuteFont, fontSize = 10.sp, color = OrangeDeep,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(YellowSoft)
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(Hairline.copy(alpha = 0.7f))
+                            )
+                        }
                         foods.forEach { food -> SharedFoodRow(food) }
                     }
                 }
@@ -143,7 +187,7 @@ private fun SharedFoodRow(food: SharedFood) {
             maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false)
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.weight(1f))
         Text(
             stringResource(R.string.chat_food_grams, food.grams),
             fontFamily = CuteFont, fontSize = 10.sp, color = InkLight

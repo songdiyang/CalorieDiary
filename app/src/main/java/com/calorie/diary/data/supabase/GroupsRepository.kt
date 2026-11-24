@@ -80,6 +80,12 @@ class GroupsRepository private constructor(context: Context) {
     suspend fun currentUserId(): String =
         auth.withValidSession { _, session -> session.userId }
 
+    /** 群主设置群号是否可被搜索加入。 */
+    suspend fun setGroupSearchable(groupId: String, searchable: Boolean): Boolean =
+        auth.withValidSession { api, session ->
+            api.setGroupSearchable(session, groupId, searchable)
+        }
+
     /** 群主解散群聊。 */
     suspend fun dissolveGroup(groupId: String): String =
         auth.withValidSession { api, session ->

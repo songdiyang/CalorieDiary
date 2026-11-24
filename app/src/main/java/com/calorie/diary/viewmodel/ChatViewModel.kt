@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorie.diary.R
+import com.calorie.diary.data.ChatEmojis
 import com.calorie.diary.data.network.NetworkErrorKind
 import com.calorie.diary.data.network.toNetworkErrorKind
 import com.calorie.diary.data.supabase.ChatRepository
@@ -14,7 +15,10 @@ import com.calorie.diary.data.supabase.SharedFood
 import com.calorie.diary.data.supabase.SupabaseApiException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +39,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = ChatRepository.get(app)
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState = _uiState.asStateFlow()
+    private val _riceEffects = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+    /** 特殊表情（米饭）触发的全屏特效事件，收到后播放一次落米动画。 */
+    val riceEffects: SharedFlow<Unit> = _riceEffects.asSharedFlow()
     private var friendId: String? = null
     private var refreshJob: Job? = null
 
@@ -98,6 +106,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             try {
+                val previousMaxId = _uiState.value.messages.maxOfOrNull { it.id } ?: 0L
                 val data = repo.loadChat(id)
                 _uiState.update {
                     it.copy(
@@ -108,6 +117,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         relationSince = data.relationSince,
                         errorRes = null
                     )
+                }
+                // 轮询拉到新的米饭表情消息时播放一次全屏特效。
+                if (data.messages.any { it.id > previousMaxId && ChatEmojis.isRice(it.content) }) {
+                    _riceEffects.tryEmit(Unit)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -133,6 +146,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         sentCount = it.sentCount + 1
                     )
                 }
+                if (ChatEmojis.isRice(sent.content)) _riceEffects.tryEmit(Unit)
                 refresh()
             } catch (e: CancellationException) {
                 throw e
@@ -202,6 +216,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun errorMessage(error: Throwable): Int {
         if (error is SupabaseApiException) {
+            if (error.serverMessage?.contains("rate_limited", ignoreCase = true) == true) {
+                return R.string.error_rate_limited
+            }
             if (error.errorCode == "friend_not_found" ||
                 error.serverMessage?.contains("not_friends", true) == true
             ) return R.string.chat_not_friends

@@ -3,9 +3,13 @@ package com.calorie.diary.data.supabase
 import android.content.Context
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -14,6 +18,13 @@ class SupabaseAuthRepository private constructor(context: Context) {
     private val api = SupabaseApi()
     private val store = SupabaseSessionStore(context)
     private val refreshMutex = Mutex()
+    private val maintenanceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        maintenanceScope.launch {
+            runCatching { store.encryptLegacyIfNeeded() }
+        }
+    }
 
     val account: Flow<AuthAccount?> = store.session.map { it?.toAccount() }
     val accounts: Flow<List<AuthAccount>> = store.accounts
