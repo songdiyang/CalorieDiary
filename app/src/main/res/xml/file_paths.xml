@@ -6,4 +6,7 @@
     <external-cache-path
         name="ext_cache_images"
         path="images/" />
+    <cache-path
+        name="update_apks"
+        path="updates/" />
 </paths>

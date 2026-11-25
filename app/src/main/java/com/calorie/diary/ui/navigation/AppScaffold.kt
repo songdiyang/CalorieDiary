@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.calorie.diary.data.AppRefreshBus
+import com.calorie.diary.data.UiMessenger
+import com.calorie.diary.data.update.AppUpdater
+import com.calorie.diary.data.update.UpdateState
 import com.calorie.diary.data.game.NewbieTaskAction
 import com.calorie.diary.data.supabase.SupabaseAuthRepository
 import com.calorie.diary.ui.account.AccountScreen
@@ -88,6 +92,8 @@ import com.calorie.diary.ui.search.FoodSearchScreen
 import com.calorie.diary.ui.settings.SettingsScreen
 import com.calorie.diary.ui.textlog.TextLogScreen
 import com.calorie.diary.R
+import com.calorie.diary.BuildConfig
+import com.calorie.diary.ui.components.UpdateDialog
 import com.calorie.diary.ui.theme.CardWhite
 import com.calorie.diary.ui.theme.Cream
 import com.calorie.diary.ui.theme.CuteFont
@@ -125,6 +131,28 @@ fun AppScaffold() {
     val authAccount by authRepo.account.collectAsState(initial = null)
     var authAccountReady by remember { mutableStateOf(false) }
     var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    // 启动自动检查更新：同一版本弹窗每次启动最多出现一次
+    val updateState by AppUpdater.state.collectAsState()
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+    var autoUpdatePrompted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) { AppUpdater.check(context, manual = false) }
+    LaunchedEffect(updateState) {
+        if ((updateState is UpdateState.Available || updateState is UpdateState.Ready) &&
+            !autoUpdatePrompted
+        ) {
+            autoUpdatePrompted = true
+            if (!showUpdateDialog) showUpdateDialog = true
+        }
+    }
+    LaunchedEffect(updateState) {
+        if (updateState is UpdateState.Ready && !showUpdateDialog) {
+            UiMessenger.show(
+                context.getString(R.string.update_download_complete),
+                isError = false
+            )
+        }
+    }
 
     LaunchedEffect(Unit) {
         authRepo.account.first()
@@ -437,7 +465,17 @@ fun AppScaffold() {
                     SettingsScreen(
                         onBack = { navController.popBackStack() },
                         onAccount = { navController.navigate(Routes.account()) },
-                        onAddAccount = { navController.navigate(Routes.account(addAccount = true)) }
+                        onAddAccount = { navController.navigate(Routes.account(addAccount = true)) },
+                        onCheckUpdate = {
+                            showUpdateDialog = true
+                            when (updateState) {
+                                is UpdateState.Idle,
+                                is UpdateState.UpToDate,
+                                is UpdateState.Failed ->
+                                    AppUpdater.check(context, manual = true)
+                                else -> Unit
+                            }
+                        }
                     )
                 }
                 composable(Routes.EXERCISE) {
@@ -485,6 +523,19 @@ fun AppScaffold() {
     // 每日签到成功：居中弹窗，必须点击“开心收下”才能关闭。
     checkInReward?.let { reward ->
         CheckInSuccessDialog(reward = reward, onConfirm = vm::dismissCheckInReward)
+    }
+
+    if (showUpdateDialog) {
+        UpdateDialog(
+            state = updateState,
+            currentVersionName = BuildConfig.VERSION_NAME,
+            currentVersionCode = BuildConfig.VERSION_CODE,
+            onDismiss = { showUpdateDialog = false },
+            onCheckAgain = { AppUpdater.check(context, manual = true) },
+            onDownload = { AppUpdater.download(context, it) },
+            onCancelDownload = AppUpdater::cancelDownload,
+            onInstall = { AppUpdater.install(context) }
+        )
     }
 }
 

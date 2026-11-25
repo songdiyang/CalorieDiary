@@ -55,6 +55,8 @@ import com.calorie.diary.data.AppRefreshBus
 import com.calorie.diary.data.UiMessenger
 import com.calorie.diary.data.supabase.AuthAccount
 import com.calorie.diary.data.supabase.DefaultAvatarCatalog
+import com.calorie.diary.data.update.AppUpdater
+import com.calorie.diary.data.update.UpdateState
 import com.calorie.diary.viewmodel.AuthUiState
 import com.calorie.diary.viewmodel.AuthViewModel
 import com.calorie.diary.ui.AppLinks
@@ -81,7 +83,12 @@ import kotlin.math.roundToInt
 private val SettingsFont = FontFamily.SansSerif
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onAccount: () -> Unit,
+    onAddAccount: () -> Unit,
+    onCheckUpdate: () -> Unit
+) {
     val vm = appVm()
     val privacyVm: ActivityPrivacyViewModel = viewModel()
     val privacyState by privacyVm.uiState.collectAsState()
@@ -102,6 +109,7 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
     var showNicknameEditor by remember { mutableStateOf(false) }
     var showDeletionDialog by remember { mutableStateOf(false) }
     var showResetPasswordDialog by remember { mutableStateOf(false) }
+    val updateState by AppUpdater.state.collectAsState()
     val deletionState by authVm.deletionState.collectAsState()
     val resetPasswordState by authVm.passwordResetState.collectAsState()
     val nicknameState by authVm.nicknameState.collectAsState()
@@ -111,6 +119,18 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
         ?: ""
     val avatarId = DefaultAvatarCatalog.resolve(identity?.avatarEmoji)
         ?: DefaultAvatarCatalog.resolve(authState.cloudProfile?.avatarEmoji)
+    val updateActionText = when (val state = updateState) {
+        is UpdateState.Checking -> stringResource(R.string.update_checking)
+        is UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
+        is UpdateState.Available ->
+            stringResource(R.string.update_new_version_row, state.info.versionName)
+        is UpdateState.Downloading -> state.percent?.let {
+            stringResource(R.string.update_downloading_row, it)
+        } ?: stringResource(R.string.update_downloading)
+        is UpdateState.Ready -> stringResource(R.string.update_ready_row)
+        is UpdateState.Failed -> stringResource(R.string.update_retry)
+        UpdateState.Idle -> stringResource(R.string.update_check_now)
+    }
 
     var age by remember { mutableStateOf(profile.age.toString()) }
     var height by remember { mutableStateOf(profile.heightCm.toString()) }
@@ -263,6 +283,12 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAddAccount: () -
                 label = stringResource(R.string.privacy_policy_title),
                 action = stringResource(R.string.settings_view),
                 onClick = { uriHandler.openUri(AppLinks.PRIVACY_POLICY) }
+            )
+            SettingsDivider()
+            SettingActionRow(
+                label = stringResource(R.string.update_check),
+                action = updateActionText,
+                onClick = onCheckUpdate
             )
             SettingsDivider()
             SettingInfoRow(
