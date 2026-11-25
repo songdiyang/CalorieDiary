@@ -182,3 +182,101 @@ jobs:
           else
             gh release create "$tag" "$asset" --target "$GITHUB_SHA" --title "$title" --notes-file release/notes.md --latest
           fi
+
+  deploy:
+    name: Deploy Update Manifest
+    needs: [build, publish]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download APK
+        uses: actions/download-artifact@v8
+        with:
+          name: CalorieDiary-apk-${{ github.run_number }}
+          path: artifact
+
+      - name: Prepare update manifest
+        env:
+          PUBLIC_BASE_URL: https://caloriediary.aetherstudio.cn
+        run: |
+          set -euo pipefail
+          apk=$(find artifact -type f -name 'CalorieDiary-release.apk' | head -n1)
+          if [ -z "$apk" ]; then
+            echo "当前构建不是固定签名的 Release 包，跳过自动部署"
+            echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          version_name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          version_code=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
+          test -n "$version_name"
+          test -n "$version_code"
+          tag="v${version_name}-${version_code}"
+          apk_name="CalorieDiary-${version_name}-${version_code}-${GITHUB_RUN_NUMBER}-release.apk"
+          cp "$apk" "$apk_name"
+          checksum=$(sha256sum "$apk_name" | cut -d' ' -f1)
+          size=$(stat -c %s "$apk_name")
+          size_label=$(awk "BEGIN { printf \"%.1f MB\", $size / 1048576 }")
+          release_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          jq -n \
+            --arg version "$version_name" \
+            --argjson versionCode "$version_code" \
+            --argjson build "$GITHUB_RUN_NUMBER" \
+            --arg channel "release" \
+            --arg releasedAt "$(date -u +%F)" \
+            --arg size "$size_label" \
+            --argjson sizeBytes "$size" \
+            --arg downloadUrl "${PUBLIC_BASE_URL}/downloads/${apk_name}" \
+            --arg releaseUrl "$release_url" \
+            --arg sha256 "$checksum" \
+            '{version:$version, versionCode:$versionCode, build:$build, channel:$channel, releasedAt:$releasedAt, size:$size, sizeBytes:$sizeBytes, downloadUrl:$downloadUrl, releaseUrl:$releaseUrl, sha256:$sha256, releaseNotes:[]}' > version.json
+          cat version.json
+          echo "APK_FILE=$apk_name" >> "$GITHUB_ENV"
+          echo "SKIP_DEPLOY=false" >> "$GITHUB_ENV"
+
+      - name: Install deploy key
+        if: env.SKIP_DEPLOY != 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload APK and manifest
+        if: env.SKIP_DEPLOY != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          port="${DEPLOY_PORT:-22}"
+          target="${DEPLOY_USER}@${DEPLOY_HOST}"
+          scp_opts=(-i ~/.ssh/deploy_key -P "$port" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes)
+          ssh_opts=(-i ~/.ssh/deploy_key -p "$port" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes)
+          # APK 先就位，最后替换 version.json，避免客户端读到不一致的清单
+          scp "${scp_opts[@]}" "$APK_FILE" "$target:$DEPLOY_PATH/downloads/.deploy-$APK_FILE.tmp"
+          ssh "${ssh_opts[@]}" "$target" "mv -f '$DEPLOY_PATH/downloads/.deploy-$APK_FILE.tmp' '$DEPLOY_PATH/downloads/$APK_FILE' && chmod 644 '$DEPLOY_PATH/downloads/$APK_FILE'"
+          scp "${scp_opts[@]}" version.json "$target:$DEPLOY_PATH/.version.json.tmp"
+          ssh "${ssh_opts[@]}" "$target" "mv -f '$DEPLOY_PATH/.version.json.tmp' '$DEPLOY_PATH/version.json' && chmod 644 '$DEPLOY_PATH/version.json'"
+
+      - name: Verify deployed manifest
+        if: env.SKIP_DEPLOY != 'true'
+        run: |
+          set -euo pipefail
+          curl -fsS "https://caloriediary.aetherstudio.cn/version.json" -o remote-version.json
+          local_version=$(jq -r .version version.json)
+          local_code=$(jq -r .versionCode version.json)
+          jq -e --arg v "$local_version" --argjson c "$local_code" '.version == $v and .versionCode == $c' remote-version.json > /dev/null
+          download_url=$(jq -r .downloadUrl remote-version.json)
+          curl -fsSI "$download_url" | head -n 1
+          echo "线上 version.json 已更新：$(jq -c '{version,versionCode,size,sha256,downloadUrl}' remote-version.json)"
