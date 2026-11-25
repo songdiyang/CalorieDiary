@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import com.calorie.diary.data.LocaleManager
 import com.calorie.diary.data.network.NetworkMonitor
+import com.calorie.diary.data.update.AppUpdater
 import com.calorie.diary.ui.navigation.AppScaffold
 import com.calorie.diary.ui.splash.SplashScreen
 import kotlinx.coroutines.delay
@@ -55,5 +56,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // 后台长时间挂起后网络回调可能不准，回到前台重新校准一次
         NetworkMonitor.refresh(this)
+        // 从“安装未知应用”设置返回后继续安装
+        AppUpdater.onForeground(this)
     }
 }

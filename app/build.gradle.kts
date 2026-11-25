@@ -41,8 +41,8 @@ android {
         applicationId = "com.calorie.diary"
         minSdk = 26
         targetSdk = 34
-        versionCode = 36
-        versionName = "0.23"
+        versionCode = 37
+        versionName = "0.25"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 云端识别代理地址与应用标识；未配置时 ProxyVisionClient 直接报服务不可用
         buildConfigField("String", "VISION_PROXY_URL", "\"$visionProxyUrl\"")
@@ -131,6 +131,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20231013")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
