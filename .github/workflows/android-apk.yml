@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -39,20 +39,76 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build Debug APK
-        run: bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
-
-      - name: Verify APK
+      # 固定签名所需的仓库 Secrets：
+      #   SIGNING_KEYSTORE_BASE64  release keystore 的 base64 文本
+      #   SIGNING_STORE_PASSWORD   keystore 密码
+      #   SIGNING_KEY_ALIAS        密钥别名
+      #   SIGNING_KEY_PASSWORD     密钥密码
+      #   SIGNING_STORE_TYPE       可选：JKS / PKCS12
+      # 未配置 keystore 时回退 debug 构建，便于本地/PR 调试。
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          STORE_TYPE: ${{ secrets.SIGNING_STORE_TYPE }}
         run: |
-          apk="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$apk"
-          sha256sum "$apk"
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "SIGNING_KEYSTORE_BASE64 未配置，回退 Debug 构建"
+            echo "HAS_SIGNING=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          for var in STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!var:-}" ]; then
+              echo "缺少签名 secret: $var" >&2
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$keystore"
+          test -s "$keystore"
+          {
+            printf 'signing.storeFile=%s\n' "$keystore"
+            printf 'signing.storePassword=%s\n' "$STORE_PASSWORD"
+            printf 'signing.keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'signing.keyPassword=%s\n' "$KEY_PASSWORD"
+            if [ -n "${STORE_TYPE:-}" ]; then
+              printf 'signing.storeType=%s\n' "$STORE_TYPE"
+            fi
+          } >> local.properties
+          echo "HAS_SIGNING=true" >> "$GITHUB_ENV"
 
-      - name: Upload Debug APK
+      - name: Build APK
+        run: |
+          set -euo pipefail
+          if [ "${HAS_SIGNING:-false}" = "true" ]; then
+            bash ./gradlew :app:assembleRelease --no-daemon --stacktrace
+          else
+            bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: Stage APK
+        run: |
+          set -euo pipefail
+          if [ "${HAS_SIGNING:-false}" = "true" ]; then
+            src="app/build/outputs/apk/release/app-release.apk"
+            build_type="release"
+          else
+            src="app/build/outputs/apk/debug/app-debug.apk"
+            build_type="debug"
+          fi
+          test -s "$src"
+          mkdir -p dist
+          cp "$src" "dist/CalorieDiary-${build_type}.apk"
+          sha256sum "dist/CalorieDiary-${build_type}.apk"
+
+      - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: CalorieDiary-debug-${{ github.run_number }}
-          path: app/build/outputs/apk/debug/*.apk
+          name: CalorieDiary-apk-${{ github.run_number }}
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -69,10 +125,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Download Debug APK
+      - name: Download APK
         uses: actions/download-artifact@v8
         with:
-          name: CalorieDiary-debug-${{ github.run_number }}
+          name: CalorieDiary-apk-${{ github.run_number }}
           path: release
 
       - name: Publish GitHub Release
@@ -82,10 +138,13 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
-          asset=release/app-debug.apk
-          test -s "$asset"
-          mv "$asset" release/CalorieDiary-debug.apk
-          asset=release/CalorieDiary-debug.apk
+          asset=$(find release -type f -name '*.apk' | head -n1)
+          test -n "$asset"
+          asset_name=$(basename "$asset")
+          case "$asset_name" in
+            *-release.apk) build_label="Release" ;;
+            *) build_label="Debug" ;;
+          esac
 
           version_name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           version_code=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
@@ -98,16 +157,27 @@ jobs:
           size=$(stat -c %s "$asset")
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           {
-            printf '自动构建的 Debug APK（非商店正式版）。\n\n'
+            if [ "$build_label" = "Release" ]; then
+              printf '自动构建的 Release APK（固定签名）。\n\n'
+            else
+              printf '自动构建的 Debug APK（非商店正式版）。\n\n'
+            fi
             printf '版本: %s (%s)\n' "$version_name" "$version_code"
             printf '提交: %s\n' "$GITHUB_SHA"
             printf '大小: %s 字节\n' "$size"
             printf 'SHA-256: %s\n' "$checksum"
             printf '构建记录: %s\n' "$run_url"
           } > release/notes.md
-          title="v${version_name} (${version_code}) · Debug 构建 #${RUN_NUMBER}"
+          title="v${version_name} (${version_code}) · ${build_label} 构建 #${RUN_NUMBER}"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$asset" --clobber
+            while IFS= read -r old_asset; do
+              [ -n "$old_asset" ] || continue
+              [ "$old_asset" = "$asset_name" ] && continue
+              case "$old_asset" in
+                *.apk) gh release delete-asset "$tag" "$old_asset" --yes ;;
+              esac
+            done < <(gh release view "$tag" --json assets --jq '.assets[].name')
             gh release edit "$tag" --title "$title" --notes-file release/notes.md --latest
           else
             gh release create "$tag" "$asset" --target "$GITHUB_SHA" --title "$title" --notes-file release/notes.md --latest
