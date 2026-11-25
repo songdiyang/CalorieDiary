@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 30
     env:
       SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
       VISION_PROXY_URL: ${{ vars.VISION_PROXY_URL || secrets.VISION_PROXY_URL }}
       VISION_APP_KEY: ${{ vars.VISION_APP_KEY || secrets.VISION_APP_KEY }}

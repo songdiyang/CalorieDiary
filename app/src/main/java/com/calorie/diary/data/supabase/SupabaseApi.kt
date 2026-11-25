@@ -44,7 +44,7 @@ class SupabaseApiException(
 /** 轻量 Supabase HTTPS 客户端，只使用项目已有的 OkHttp 与 JSON。 */
 class SupabaseApi(
     private val baseUrl: String = BuildConfig.SUPABASE_URL.trimEnd('/'),
-    private val publishableKey: String = BuildConfig.SUPABASE_ANON_KEY,
+    private val publishableKey: String = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
     private val client: OkHttpClient = HttpClients.sync
 ) {
     private val jsonType = "application/json; charset=utf-8".toMediaType()

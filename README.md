@@ -58,11 +58,25 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 | 名称 | 用途 |
 | --- | --- |
 | `SUPABASE_URL` | Supabase 项目 URL |
-| `SUPABASE_ANON_KEY` | Supabase anon / publishable key |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase Publishable key（推荐，`sb_publishable_...`） |
+| `SUPABASE_ANON_KEY` | 旧版兼容，可选；已配置 Publishable key 时无需设置 |
 | `VISION_PROXY_URL` | 云端识别代理地址，可选 |
 | `VISION_APP_KEY` | 云端识别代理的应用标识，可选 |
 
-工作流优先读取 **Variables**，为空时回退到同名的 **Secrets**。客户端只能使用 anon / publishable key，不要配置 `service_role` 等服务端密钥。当前流程生成可直接安装的 Debug APK，不包含应用商店所需的正式签名。
+工作流优先读取 **Variables**，为空时回退到同名的 **Secrets**。客户端只能使用 Publishable / 旧版 anon key，不要配置 `service_role` 或 secret key。当前流程生成可直接安装的 Debug APK，不包含应用商店所需的正式签名。
+
+## Supabase 配置
+
+登录、注册和云同步需要项目根目录的 `local.properties` 提供 Supabase 配置。该文件已被 `.gitignore` 忽略，不会提交：
+
+```properties
+supabase.url=https://your-project.supabase.co
+supabase.publishableKey=sb_publishable_xxx
+```
+
+也可以使用 Gradle 属性 `supabase.url`、`supabase.publishableKey`，或环境变量 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`。为兼容旧项目，仍接受 `supabase.anonKey` 和 `SUPABASE_ANON_KEY`。
+
+只使用可公开的 Publishable key（或旧版 anon key），不要配置 `service_role` 或 secret key。新建的 Git worktree 不会自动继承原目录的 `local.properties`，需要重新创建或通过参数/环境变量传入，否则登录页会提示云服务未配置。
 
 ## 目录结构
 

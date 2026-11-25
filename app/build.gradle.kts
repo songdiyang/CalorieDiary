@@ -13,11 +13,15 @@ val localProps = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 
-fun buildTimeConfig(key: String, envName: String): String =
-    (localProps.getProperty(key)
-        ?: (project.findProperty(key) as String?)
-        ?: System.getenv(envName)
-        ?: "")
+fun buildTimeConfig(vararg sources: Pair<String, String>): String =
+    sources.asSequence()
+        .mapNotNull { (key, envName) ->
+            localProps.getProperty(key)
+                ?: (project.findProperty(key) as String?)
+                ?: System.getenv(envName)
+        }
+        .firstOrNull()
+        .orEmpty()
         .trim()
         .replace("\\", "")
         .replace("\"", "")
@@ -28,10 +32,13 @@ val releaseStoreType = localProps.getProperty("signing.storeType")?.trim().orEmp
 val releaseKeyAlias = localProps.getProperty("signing.keyAlias")?.trim().orEmpty()
 val releaseKeyPassword = localProps.getProperty("signing.keyPassword")?.trim().orEmpty()
 
-val visionProxyUrl = buildTimeConfig("vision.proxyUrl", "VISION_PROXY_URL")
-val visionAppKey = buildTimeConfig("vision.appKey", "VISION_APP_KEY")
-val supabaseUrl = buildTimeConfig("supabase.url", "SUPABASE_URL").trimEnd('/')
-val supabaseAnonKey = buildTimeConfig("supabase.anonKey", "SUPABASE_ANON_KEY")
+val visionProxyUrl = buildTimeConfig("vision.proxyUrl" to "VISION_PROXY_URL")
+val visionAppKey = buildTimeConfig("vision.appKey" to "VISION_APP_KEY")
+val supabaseUrl = buildTimeConfig("supabase.url" to "SUPABASE_URL").trimEnd('/')
+val supabasePublishableKey = buildTimeConfig(
+    "supabase.publishableKey" to "SUPABASE_PUBLISHABLE_KEY",
+    "supabase.anonKey" to "SUPABASE_ANON_KEY"
+)
 
 android {
     namespace = "com.calorie.diary"
@@ -49,7 +56,7 @@ android {
         buildConfigField("String", "VISION_APP_KEY", "\"$visionAppKey\"")
         // Supabase Publishable key 可公开；真正的数据隔离由用户令牌和 RLS 负责。
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabasePublishableKey\"")
         vectorDrawables {
             useSupportLibrary = true
         }
