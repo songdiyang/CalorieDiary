@@ -33,6 +33,7 @@ import com.calorie.diary.data.parser.ParsedFood
 import com.calorie.diary.data.parser.TextParseResult
 import com.calorie.diary.data.repo.AppRepository
 import com.calorie.diary.data.supabase.CloudGameRepository
+import com.calorie.diary.data.supabase.CloudGameState
 import com.calorie.diary.data.supabase.DefaultAvatarCatalog
 import com.calorie.diary.data.supabase.SupabaseApiException
 import com.calorie.diary.data.supabase.SupabaseAuthRepository
@@ -43,6 +44,9 @@ import com.calorie.diary.data.vision.RecognizedFood
 import com.calorie.diary.data.vision.VisionErrorKind
 import com.calorie.diary.data.vision.VisionServiceException
 import com.calorie.diary.data.vision.VisionState
+import com.calorie.diary.widget.CheckInWidgetEvents
+import com.calorie.diary.widget.CheckInWidgetStore
+import com.calorie.diary.widget.CheckInWidgets
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +95,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = AppRepository.get(app)
     private val gameRepo = CloudGameRepository.get(app)
     private val authRepo = SupabaseAuthRepository.get(app)
+    private val widgetStore = CheckInWidgetStore(app)
 
     private fun str(resId: Int, vararg args: Any): String =
         getApplication<Application>().getString(resId, *args)
@@ -218,6 +223,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _gameState.update { it.copy(todayFoodCount = entries.size) }
             }
         }
+        // 桌面组件内签到成功后，前台页面立即拉取最新金币与连签状态。
+        viewModelScope.launch {
+            CheckInWidgetEvents.checkedIn.collect { refreshGameState() }
+        }
         viewModelScope.launch {
             authRepo.account.map { it?.userId }.distinctUntilChanged().collect { userId ->
                 if (userId == null) {
@@ -229,6 +238,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             loading = false
                         )
                     }
+                    syncCheckInWidget(null)
                 } else {
                     repo.setActiveUser(userId)
                     try {
@@ -285,6 +295,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         loading = false
                     )
                 }
+                syncCheckInWidget(cloud)
                 // 打开应用即签到：当天还没签过就自动领取，无需手动操作。
                 if (cloud.lastCheckInDate != cloud.serverDate) autoDailyCheckIn()
                 if (cloud.newbieTasks.any { !it.done }) syncNewbieTasks()
@@ -299,12 +310,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             loading = false
                         )
                     }
+                    syncCheckInWidget(null)
                 } else {
                     _gameState.update { it.copy(loading = false) }
                     showMessage(str(R.string.error_generic))
                 }
             }
         }
+    }
+
+    /** 把签到状态同步到桌面组件；null 表示已退出登录。 */
+    private fun syncCheckInWidget(state: CloudGameState?) {
+        val app = getApplication<Application>()
+        if (state == null) widgetStore.setLoggedOut() else widgetStore.save(state)
+        CheckInWidgets.updateAll(app)
     }
 
     /** 自动签到进行中的去重标记：多个页面同时刷新时不重复请求。 */

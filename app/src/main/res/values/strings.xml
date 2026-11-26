@@ -364,6 +364,45 @@
     <string name="checkin_streak_note">已连续签到 %1$d 天</string>
     <string name="checkin_doubled_note">连续 %1$d 天签到，奖励翻倍</string>
     <string name="checkin_confirm">开心收下</string>
+    <!-- 连胜签到桌面组件 -->
+    <string name="widget_checkin_label">连胜签到</string>
+    <string name="widget_checkin_description">在桌面查看连续签到天数，点一下就能签到</string>
+    <string name="widget_checkin_streak_unit">天</string>
+    <string name="widget_checkin_month">%1$d年%2$d月</string>
+    <string name="widget_checkin_subtitle_pending">今天还没签到 · +%1$d 金币</string>
+    <string name="widget_checkin_subtitle_pending_double">今天签到翻倍 · +%1$d 金币</string>
+    <string name="widget_checkin_subtitle_checked">今天已签到 · 明天继续</string>
+    <string name="widget_checkin_subtitle_checked_double">今天已签到 · 奖励翻倍</string>
+    <string name="widget_checkin_subtitle_logged_out">登录后开启每日连胜</string>
+    <string name="widget_checkin_action">去签到</string>
+    <string name="widget_checkin_action_done">已签到</string>
+    <string name="widget_checkin_action_login">去登录</string>
+    <string name="widget_checkin_offline">网络未连接，联网后再签到</string>
+    <string name="widget_checkin_failed">签到失败，点一下再试</string>
+    <string name="widget_checkin_quote_label">今日鸡汤</string>
+    <string name="widget_checkin_quote_default">「每一次记录，都是对自己的温柔。」</string>
+    <string-array name="widget_checkin_quotes">
+        <item>「每一次记录，都是对自己的温柔。」</item>
+        <item>「慢慢来，比较快。」</item>
+        <item>「坚持不是口号，是今天再来一次。」</item>
+        <item>「好好吃饭，也是热爱生活。」</item>
+        <item>「今天的一小步，是明天的大进步。」</item>
+        <item>「别小看每天的一点点，那是未来的底气。」</item>
+        <item>「体重会波动，坚持不会白费。」</item>
+        <item>「你走过的每一步，都算数。」</item>
+        <item>「不追求完美，只追求不放弃。」</item>
+        <item>「连胜的秘诀，就是今天别停下。」</item>
+        <item>「控制热量，不是克制快乐。」</item>
+        <item>「给坚持一点掌声，你已经很棒了。」</item>
+        <item>「改变，从下一顿饭开始。」</item>
+        <item>「你的努力，身体都记得。」</item>
+        <item>「慢一点没关系，别停就好。」</item>
+        <item>「把今天过好，就是最好的自律。」</item>
+        <item>「吃得开心，也要记得认真。」</item>
+        <item>「和昨天的自己比，就很好。」</item>
+        <item>「热量有数，快乐无价。」</item>
+        <item>「再坚持一下，就习惯啦。」</item>
+    </string-array>
     <string name="level_badge">Lv.%1$d</string>
     <string name="level_up">升级啦！当前 Lv.%1$d</string>
     <string name="daily_task_title">每日任务</string>
