@@ -40,6 +40,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      # main 构建会发布给客户端，缺少云端参数时必须失败，避免产出无法登录的 APK。
+      - name: Verify cloud configuration
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          missing=0
+          case "${SUPABASE_URL:-}" in
+            https://*) ;;
+            *)
+              echo "::error::SUPABASE_URL 未配置或不是 HTTPS 地址"
+              missing=1
+              ;;
+          esac
+          if [ -z "${SUPABASE_PUBLISHABLE_KEY:-}" ] && [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::SUPABASE_PUBLISHABLE_KEY 未配置"
+            missing=1
+          fi
+          exit "$missing"
+
       # 固定签名所需的仓库 Secrets：
       #   SIGNING_KEYSTORE_BASE64  release keystore 的 base64 文本
       #   SIGNING_STORE_PASSWORD   keystore 密码
@@ -89,6 +108,16 @@ jobs:
           else
             bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
           fi
+
+      - name: Verify APK cloud configuration
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          config=$(find app/build/generated/source/buildConfig -name BuildConfig.java -print -quit)
+          test -n "$config"
+          grep -Eq 'SUPABASE_URL = "https://[^"]+"' "$config"
+          grep -Eq 'SUPABASE_PUBLISHABLE_KEY = "[^"]+"' "$config"
+          echo "BuildConfig contains Supabase URL and publishable key"
 
       - name: Stage APK
         run: |

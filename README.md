@@ -63,7 +63,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 | `VISION_PROXY_URL` | 云端识别代理地址，可选 |
 | `VISION_APP_KEY` | 云端识别代理的应用标识，可选 |
 
-工作流优先读取 **Variables**，为空时回退到同名的 **Secrets**。客户端只能使用 Publishable / 旧版 anon key，不要配置 `service_role` 或 secret key。当前流程生成可直接安装的 Debug APK，不包含应用商店所需的正式签名。
+工作流优先读取 **Variables**，为空时回退到同名的 **Secrets**。客户端只能使用 Publishable / 旧版 anon key，不要配置 `service_role` 或 secret key。`main` 构建缺少 Supabase URL 或 key 时会直接失败，避免发布无法登录的 APK。当前流程生成可直接安装的 Debug APK，不包含应用商店所需的正式签名。
 
 ## Supabase 配置
 
