@@ -3,4 +3,16 @@
     <color name="cream">#FFFFF6E0</color>
     <color name="ink">#FF5C4A3D</color>
     <color name="orange">#FFFF9F68</color>
+
+    <!-- 连胜签到桌面组件（默认暖阳橙配色） -->
+    <color name="widget_card">#FFFFFDF7</color>
+    <color name="widget_ink">#FF5C4A3D</color>
+    <color name="widget_ink_light">#FF9A8B7E</color>
+    <color name="widget_ink_faint">#FFC9BBAE</color>
+    <color name="widget_hairline">#FFECE4DA</color>
+    <color name="widget_quote">#FFFFF4DA</color>
+    <color name="widget_primary_deep">#FFFF8A5C</color>
+    <color name="widget_pending">#FFFFD76A</color>
+    <color name="widget_button_text">#FFFFFFFF</color>
+    <color name="widget_button_done">#FFD7F0E2</color>
 </resources>
